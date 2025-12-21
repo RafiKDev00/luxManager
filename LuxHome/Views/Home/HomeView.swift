@@ -8,78 +8,56 @@
 import SwiftUI
 
 struct HomeView: View {
+    @Environment(LuxHomeModel.self) private var model
+    @State private var showingTaskCreation = false
 
     var body: some View{
         NavigationStack {
-            VStack{
-                TaskList
-                    .ignoresSafeArea(edges: .bottom)
-                    .safeAreaBar(edge: .top){
-                        HeaderArea
+            ToDobject()
+                .safeAreaBar(edge: .bottom) {
+                    HStack {
+                        Spacer()
+                        Button {
+                            showingTaskCreation = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .buttonStyle(IconButtonStyle(type: .plus))
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 8)
                     }
-            }
+                    .background(Color.clear)
+                }
+                .sheet(isPresented: $showingTaskCreation) {
+                    ScheduledTaskCreationView()
+                        .environment(model)
+                }
         }
-    }
-
-    var TaskList: some View{
-        TaskView()
-    }
-
-    var HeaderArea: some View{
-        VStack(alignment: .leading, spacing: 8) {
-            HStack() {
-                Image(systemName: "house.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .blue.opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                
-                Text("Weekly Tasks")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 4)
-
-
-                Spacer()
-
-                Button(action: {}) {}
-                    .buttonStyle(.iconEllipsis)
-            }
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-                    }
-        .frame(maxWidth: .infinity)
     }
 }
 
 struct RootTabView: View {
+    @Environment(LuxHomeModel.self) private var model
+
+    var totalTaskCount: Int {
+        model.overdueTasks.count + model.todayTasks.count + model.weekTasks.count
+    }
+
     var body: some View {
         TabView {
             Tab("Home", systemImage: "house") {
                 HomeView()
             }
-            .badge(2)
+            .badge(totalTaskCount)
 
             Tab("Projects", systemImage: "checklist.unchecked") {
-                Text("Projects View")
+                ProjectView()
             }
             .badge("!")
 
             Tab("Workers", systemImage: "person.2") {
-                Text("Workers View")
+                WorkersView()
             }
-            .badge("!")
 
             Tab("Add", systemImage: "plus.app") {
                 Text("Add View")
@@ -90,7 +68,8 @@ struct RootTabView: View {
 
 #Preview {
     RootTabView()
+        .environment(LuxHomeModel.shared)
 }
 
 
-//Weekly Tasks and all things due that week show up on weekly tasks view.
+// Weekly Tasks and all things due that week show up on weekly tasks view.

@@ -22,10 +22,9 @@ struct IconButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         Image(systemName: iconName)
-            .font(.system(size: 19, weight: .semibold))
+            .font(.system(size: iconFontSize, weight: .semibold))
             .foregroundStyle(foregroundColor)
-            .frame(width: iconFrameWidth, height: iconFrameHeight)
-            .frame(width: 36, height: 36)
+            .frame(width: buttonSize, height: buttonSize)
             .glassEffect(glassStyle, in: .circle)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.bouncy, value: configuration.isPressed)
@@ -46,21 +45,25 @@ struct IconButtonStyle: ButtonStyle {
         }
     }
 
-    private var iconFrameWidth: CGFloat {
+    private var buttonSize: CGFloat {
         switch type {
-        case .close, .clearText, .back, .ellipsis:
+        case .close, .check:
             return 48
-        case .plus, .check:
-            return 32
+        case .clearText, .back, .ellipsis:
+            return 48
+        case .plus:
+            return 48
         }
     }
 
-    private var iconFrameHeight: CGFloat {
+    private var iconFontSize: CGFloat {
         switch type {
-        case .close, .clearText, .back, .ellipsis:
-            return 48
-        case .plus, .check:
-            return 28
+        case .close, .check:
+            return 16
+        case .clearText, .back, .ellipsis:
+            return 19
+        case .plus:
+            return 19
         }
     }
 
