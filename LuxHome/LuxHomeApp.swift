@@ -10,13 +10,13 @@ import CoreData
 
 @main
 struct LuxHomeApp: App {
-    let persistenceController = PersistenceController.shared
+    // let persistenceController = PersistenceController.shared
     let model = LuxHomeModel.shared
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                // .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environment(model)
         }
     }
