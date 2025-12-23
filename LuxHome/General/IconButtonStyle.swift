@@ -52,7 +52,7 @@ struct IconButtonStyle: ButtonStyle {
         case .clearText, .back:
             return 48
         case .ellipsis:
-            return 40
+            return 48
         case .plus:
             return 48
         }

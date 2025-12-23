@@ -12,6 +12,7 @@ import ContactsUI
 struct WorkerCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(LuxHomeModel.self) private var model
+    var onSave: ((LuxWorker) -> Void)? = nil
 
     @State private var workerName: String = ""
     @State private var company: String = ""
@@ -166,7 +167,7 @@ struct WorkerCreationView: View {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
 
-        model.createWorker(
+        let worker = model.createWorker(
             name: workerName,
             company: company,
             phone: phone,
@@ -175,6 +176,7 @@ struct WorkerCreationView: View {
             serviceTypes: services,
             scheduleType: selectedScheduleType
         )
+        onSave?(worker)
         dismiss()
     }
 

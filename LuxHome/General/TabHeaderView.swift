@@ -21,11 +21,10 @@ struct TabHeaderView: View {
                     Image(systemName: "ellipsis")
                 }
                 .buttonStyle(IconButtonStyle(type: .ellipsis))
-                .padding(.trailing, 16)
             }
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
         .background(Color(.orange))
     }
 }

@@ -26,13 +26,14 @@ struct HistorySearchBar: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
+                        .tint(.orange)
                 }
                 .padding(.trailing, 16)
             }
         }
         .padding(.vertical, 12)
         .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .background(Color.clear)

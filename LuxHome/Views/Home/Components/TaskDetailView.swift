@@ -178,7 +178,6 @@ struct SubtaskRowView: View {
             Spacer()
 
             if isEditMode {
-                // Show swipe indicator
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
                         .font(.caption)

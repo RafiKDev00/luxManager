@@ -12,6 +12,7 @@ struct WorkerDetailView: View {
     @Environment(LuxHomeModel.self) private var model
 
     let workerId: UUID
+    @State private var showingDeleteAlert = false
 
     private var worker: LuxWorker {
         model.workers.first(where: { $0.id == workerId }) ?? LuxWorker(
@@ -30,6 +31,7 @@ struct WorkerDetailView: View {
                 servicesSection
                 scheduleSection
                 scheduledVisitsSection
+                projectsSection
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
@@ -39,11 +41,21 @@ struct WorkerDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
+                Button(role: .destructive) {
+                    showingDeleteAlert = true
                 } label: {
-                    Image(systemName: "pencil")
+                    Image(systemName: "trash")
                 }
             }
+        }
+        .alert("Delete Worker", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                model.deleteWorker(workerId)
+                dismiss()
+            }
+        } message: {
+            Text("Are you sure you want to remove this worker? This will also unassign them from any projects.")
         }
     }
 
@@ -163,6 +175,48 @@ struct WorkerDetailView: View {
         }
     }
 
+    private var projectsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("Projects")
+            let (current, past) = projectsForWorker()
+
+            if current.isEmpty && past.isEmpty {
+                Text("No projects")
+                    .foregroundStyle(.secondary)
+            }
+
+            if !current.isEmpty {
+                Text("Current")
+                    .font(.subheadline.bold())
+                ForEach(current) { project in
+                    projectRow(project)
+                }
+            }
+
+            if !past.isEmpty {
+                Text("Past")
+                    .font(.subheadline.bold())
+                ForEach(past) { project in
+                    projectRow(project)
+                }
+            }
+        }
+    }
+
+    private func projectRow(_ project: LuxProject) -> some View {
+        HStack {
+            Text(project.name)
+                .font(.body)
+            Spacer()
+            Text(project.status)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
     private func scheduledVisitCard(_ visit: ScheduledVisit) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -227,6 +281,15 @@ struct WorkerDetailView: View {
                 .foregroundStyle(item.isCompleted ? .secondary : .primary)
                 .strikethrough(item.isCompleted)
         }
+    }
+
+    private func projectsForWorker() -> ([LuxProject], [LuxProject]) {
+        let assigned = model.projects.filter { project in
+            project.assignedWorkers.contains(where: { $0.workerId == workerId })
+        }
+        let current = assigned.filter { $0.status != "Completed" }
+        let past = assigned.filter { $0.status == "Completed" }
+        return (current, past)
     }
 
     private func sectionHeader(_ title: String) -> some View {

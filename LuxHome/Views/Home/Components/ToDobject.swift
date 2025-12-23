@@ -20,7 +20,7 @@ struct ToDobject: View {
 
                 List {
                     Section {
-                        TaskRowView(tasks: model.incompleteTasks)
+                        TaskRowView(tasks: orderedTasks)
                     } header: {
                         SectionHeaderView(title: "Tasks", color: .primary)
                     }
@@ -28,6 +28,15 @@ struct ToDobject: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
             }
+        }
+    }
+
+    private var orderedTasks: [LuxTask] {
+        model.tasks.sorted { lhs, rhs in
+            if lhs.isCompleted != rhs.isCompleted {
+                return !lhs.isCompleted
+            }
+            return lhs.createdAt > rhs.createdAt
         }
     }
 }

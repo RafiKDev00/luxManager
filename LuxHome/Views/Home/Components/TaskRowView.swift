@@ -49,10 +49,8 @@ struct TaskRowView: View {
         let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
 
         if let lastCompleted = task.lastCompletedDate {
-            // If it was completed, check if it's been more than a week since last completion
             return lastCompleted < oneWeekAgo
         } else {
-            // If never completed, check if it's been more than a week since creation
             return task.createdAt < oneWeekAgo
         }
     }

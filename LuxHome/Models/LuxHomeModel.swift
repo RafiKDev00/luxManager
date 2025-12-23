@@ -132,8 +132,7 @@ class LuxHomeModel {
         ]
     }
 
-    static var sampleProjects: [LuxProject] {
-        let workers = LuxHomeModel.sampleWorkers
+    static func sampleProjects(using workers: [LuxWorker]) -> [LuxProject] {
         let mariaId = workers.count > 0 ? workers[0].id : UUID()
         let andrewId = workers.count > 1 ? workers[1].id : UUID()
         let johnId = workers.count > 3 ? workers[3].id : UUID()
@@ -376,8 +375,9 @@ class LuxHomeModel {
     func loadSampleData() {
         tasks = LuxHomeModel.sampleTasks
         subtasks = LuxHomeModel.sampleSubtasks
-        projects = LuxHomeModel.sampleProjects
-        workers = LuxHomeModel.sampleWorkers
+        let seededWorkers = LuxHomeModel.sampleWorkers
+        workers = seededWorkers
+        projects = LuxHomeModel.sampleProjects(using: seededWorkers)
         history = LuxHomeModel.sampleHistory
     }
 
@@ -565,6 +565,7 @@ class LuxHomeModel {
 
     private func updateTaskSubtaskCounts(_ taskId: UUID) {
         if let index = tasks.firstIndex(where: { $0.id == taskId }) {
+            let wasCompleted = tasks[index].isCompleted
             let taskSubtasks = subtasks.filter { $0.taskId == taskId }
             let completedCount = taskSubtasks.filter { $0.isCompleted }.count
 
@@ -574,6 +575,9 @@ class LuxHomeModel {
             if taskSubtasks.count > 0 && completedCount == taskSubtasks.count {
                 tasks[index].isCompleted = true
                 tasks[index].lastCompletedDate = Date()
+                if !wasCompleted {
+                    logHistory(action: .completed, itemType: .task, itemName: tasks[index].name)
+                }
             } else {
                 tasks[index].isCompleted = false
             }
@@ -618,6 +622,20 @@ class LuxHomeModel {
         }
     }
 
+    func updateProjectAssignments(_ projectId: UUID, assignments: [ProjectWorkerAssignment]) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].assignedWorkers = assignments
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func updateProjectStatus(_ projectId: UUID, status: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].status = status
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
     func deleteProject(_ projectId: UUID) {
         if let project = projects.first(where: { $0.id == projectId }) {
             logHistory(action: .deleted, itemType: .project, itemName: project.name)
@@ -626,7 +644,8 @@ class LuxHomeModel {
     }
 
     // MARK: - Worker Management
-    func createWorker(name: String, company: String, phone: String, email: String?, specialization: String, serviceTypes: [String], scheduleType: ScheduleType) {
+    @discardableResult
+    func createWorker(name: String, company: String, phone: String, email: String?, specialization: String, serviceTypes: [String], scheduleType: ScheduleType) -> LuxWorker {
         let newWorker = LuxWorker(
             name: name,
             company: company,
@@ -638,6 +657,7 @@ class LuxHomeModel {
         )
         workers.append(newWorker)
         logHistory(action: .created, itemType: .worker, itemName: name)
+        return newWorker
     }
 
     func toggleWorkerSchedule(_ workerId: UUID, isScheduled: Bool) {
@@ -671,6 +691,17 @@ class LuxHomeModel {
             workers[index].specialization = specialization
             workers[index].serviceTypes = serviceTypes
             logHistory(action: .edited, itemType: .worker, itemName: name)
+        }
+    }
+
+    func deleteWorker(_ workerId: UUID) {
+        if let worker = workers.first(where: { $0.id == workerId }) {
+            workers.removeAll { $0.id == workerId }
+            // Remove from any project assignments
+            for idx in projects.indices {
+                projects[idx].assignedWorkers.removeAll { $0.workerId == workerId }
+            }
+            logHistory(action: .deleted, itemType: .worker, itemName: worker.name)
         }
     }
 
