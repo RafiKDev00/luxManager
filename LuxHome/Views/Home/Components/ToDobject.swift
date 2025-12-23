@@ -26,7 +26,9 @@ struct ToDobject: View {
                     }
                 }
                 .listStyle(.plain)
+                .listSectionSpacing(0)
                 .scrollContentBackground(.hidden)
+                .padding(.top, -22)
             }
         }
     }

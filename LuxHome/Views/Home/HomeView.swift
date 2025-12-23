@@ -53,7 +53,6 @@ struct RootTabView: View {
             Tab("Projects", systemImage: "checklist.unchecked") {
                 ProjectView()
             }
-            .badge("!")
 
             Tab("Workers", systemImage: "person.2") {
                 WorkersView()
