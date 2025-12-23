@@ -15,6 +15,8 @@ struct ProjectCreationView: View {
     @State private var description: String = ""
     @State private var dueDate: Date = Date()
     @State private var nextStep: String = ""
+    @State private var assignedWorkers: [ProjectWorkerAssignment] = []
+    @State private var showingAddWorker = false
 
     var body: some View {
         NavigationStack {
@@ -22,6 +24,7 @@ struct ProjectCreationView: View {
                 projectDetailsSection
                 schedulingSection
                 nextStepSection
+                workersSection
             }
             .safeAreaBar(edge: .top, spacing: 0) {
                 topBar
@@ -56,6 +59,56 @@ struct ProjectCreationView: View {
                 .lineLimit(2...4)
         } header: {
             Text("Next Step (Optional)")
+        }
+    }
+
+    private var workersSection: some View {
+        Section {
+            if assignedWorkers.isEmpty {
+                Text("No workers assigned")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach($assignedWorkers) { $assignment in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(workerName(for: assignment.workerId))
+                                .font(.headline)
+                            TextField("Role", text: $assignment.role)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            removeAssignment(assignment.id)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+
+            if !availableWorkers.isEmpty {
+                Menu {
+                    ForEach(availableWorkers, id: \.id) { worker in
+                        Button(worker.name) {
+                            addAssignment(for: worker.id)
+                        }
+                    }
+                } label: {
+                    Label("Add Existing Worker", systemImage: "person.fill.badge.plus")
+                }
+            }
+
+            Button {
+                showingAddWorker = true
+            } label: {
+                Label("Add New Worker", systemImage: "plus.circle")
+            }
+        } header: {
+            Text("Workers")
+        }
+        .sheet(isPresented: $showingAddWorker) {
+            AddWorkerView()
         }
     }
 
@@ -104,9 +157,28 @@ struct ProjectCreationView: View {
             name: projectName,
             description: description,
             dueDate: dueDate,
-            nextStep: nextStep
+            nextStep: nextStep,
+            assignedWorkers: assignedWorkers
         )
         dismiss()
+    }
+
+    private var availableWorkers: [LuxWorker] {
+        let assignedIds = Set(assignedWorkers.map(\.workerId))
+        return model.workers.filter { !assignedIds.contains($0.id) }
+    }
+
+    private func addAssignment(for workerId: UUID) {
+        guard !assignedWorkers.contains(where: { $0.workerId == workerId }) else { return }
+        assignedWorkers.append(ProjectWorkerAssignment(workerId: workerId))
+    }
+
+    private func removeAssignment(_ id: UUID) {
+        assignedWorkers.removeAll { $0.id == id }
+    }
+
+    private func workerName(for workerId: UUID) -> String {
+        model.workers.first(where: { $0.id == workerId })?.name ?? "Unknown Worker"
     }
 }
 

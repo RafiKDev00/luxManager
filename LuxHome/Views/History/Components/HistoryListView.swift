@@ -22,24 +22,38 @@ struct HistoryListView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(sortedDates, id: \.self) { date in
-                Section {
-                    ForEach(groupedHistory[date] ?? []) { entry in
-                        HistoryEntryRow(entry: entry) {
-                            onEntryTap(entry)
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                ForEach(sortedDates, id: \.self) { date in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(formattedDate(date))
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 12)
+
+                        VStack(spacing: 0) {
+                            let entries = groupedHistory[date] ?? []
+                            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                                HistoryEntryRow(entry: entry) {
+                                    onEntryTap(entry)
+                                }
+                                if index != entries.count - 1 {
+                                    Divider()
+                                }
+                            }
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                     }
-                } header: {
-                    Text(formattedDate(date))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .textCase(nil)
+                    .background(Color(.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    .padding(.horizontal, 16)
                 }
             }
+            .padding(.vertical, 12)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
 
     private func formattedDate(_ date: Date) -> String {

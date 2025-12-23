@@ -9,6 +9,7 @@ import Foundation
 
 struct LuxProject: Identifiable, Codable {
     let id: UUID
+    var assignedWorkers: [ProjectWorkerAssignment]
     var name: String
     var status: String
     var description: String
@@ -19,6 +20,7 @@ struct LuxProject: Identifiable, Codable {
 
     init(
         id: UUID = UUID(),
+        assignedWorkers: [ProjectWorkerAssignment] = [],
         name: String,
         status: String = "In Progress",
         description: String,
@@ -28,6 +30,7 @@ struct LuxProject: Identifiable, Codable {
         progressLog: [ProgressLogEntry] = []
     ) {
         self.id = id
+        self.assignedWorkers = assignedWorkers
         self.name = name
         self.status = status
         self.description = description
@@ -35,6 +38,18 @@ struct LuxProject: Identifiable, Codable {
         self.nextStep = nextStep
         self.photoURLs = photoURLs
         self.progressLog = progressLog
+    }
+}
+
+struct ProjectWorkerAssignment: Identifiable, Codable, Equatable {
+    let id: UUID
+    var workerId: UUID
+    var role: String
+
+    init(id: UUID = UUID(), workerId: UUID, role: String = "") {
+        self.id = id
+        self.workerId = workerId
+        self.role = role
     }
 }
 

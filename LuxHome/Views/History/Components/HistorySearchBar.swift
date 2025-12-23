@@ -16,7 +16,7 @@ struct HistorySearchBar: View {
                 .foregroundStyle(.secondary)
                 .padding(.leading, 16)
 
-            TextField("Search by name", text: $searchText)
+            TextField("Search by name or date", text: $searchText)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
 

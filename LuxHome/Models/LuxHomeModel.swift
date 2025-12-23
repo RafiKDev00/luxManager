@@ -133,8 +133,17 @@ class LuxHomeModel {
     }
 
     static var sampleProjects: [LuxProject] {
-        [
+        let workers = LuxHomeModel.sampleWorkers
+        let mariaId = workers.count > 0 ? workers[0].id : UUID()
+        let andrewId = workers.count > 1 ? workers[1].id : UUID()
+        let johnId = workers.count > 3 ? workers[3].id : UUID()
+
+        return [
             LuxProject(
+                assignedWorkers: [
+                    ProjectWorkerAssignment(workerId: mariaId, role: "Landscaping Lead"),
+                    ProjectWorkerAssignment(workerId: johnId, role: "Irrigation")
+                ],
                 name: "Garden Remodel",
                 status: "In Progress",
                 description: "A comprehensive renovation of the backyard garden, including new landscaping, irrigation system, and a custom-built patio.",
@@ -163,6 +172,9 @@ class LuxHomeModel {
                 ]
             ),
             LuxProject(
+                assignedWorkers: [
+                    ProjectWorkerAssignment(workerId: andrewId, role: "General Contractor")
+                ],
                 name: "Kitchen Renovation",
                 status: "In Progress",
                 description: "Complete kitchen overhaul including new cabinets, countertops, appliances, and updated electrical work.",
@@ -182,6 +194,9 @@ class LuxHomeModel {
                 ]
             ),
             LuxProject(
+                assignedWorkers: [
+                    ProjectWorkerAssignment(workerId: mariaId, role: "Initial inspection")
+                ],
                 name: "Basement Finishing",
                 status: "On Hold",
                 description: "Transform unfinished basement into a family room with home theater setup.",
@@ -566,8 +581,9 @@ class LuxHomeModel {
     }
 
     // MARK: - Project Management
-    func createProject(name: String, description: String, dueDate: Date, nextStep: String) {
+    func createProject(name: String, description: String, dueDate: Date, nextStep: String, assignedWorkers: [ProjectWorkerAssignment] = []) {
         let newProject = LuxProject(
+            assignedWorkers: assignedWorkers,
             name: name,
             description: description,
             dueDate: dueDate,

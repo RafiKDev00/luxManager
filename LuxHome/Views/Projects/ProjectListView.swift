@@ -40,10 +40,7 @@ struct ProjectListView: View {
     }
 
     private var projectsHeader: some View {
-        EngravedFont(text: "Projects", font: .system(size: 40, weight: .bold))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
-            .background(Color(.orange))
+        TabHeaderView(title: "Projects") { }
     }
 }
 

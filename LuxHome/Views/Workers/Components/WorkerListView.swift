@@ -10,18 +10,18 @@ import SwiftUI
 struct WorkerListView: View {
     @Environment(LuxHomeModel.self) private var model
 
-    @State private var selectedFilter: WorkerFilter = .all
+    @State private var selectedTab: WorkerTab = .current
 
     var filteredWorkers: [LuxWorker] {
-        switch selectedFilter {
+        switch selectedTab {
+        case .current:
+            let activeProjectIds = model.projects
+                .filter { $0.status != "Completed" }
+                .flatMap { $0.assignedWorkers.map(\.workerId) }
+            let activeSet = Set(activeProjectIds)
+            return model.workers.filter { activeSet.contains($0.id) }
         case .all:
             return model.workers
-        case .cleaner:
-            return model.workers.filter { $0.specialization == "Cleaner" }
-        case .gardener:
-            return model.workers.filter { $0.specialization == "Gardener" }
-        case .poolService:
-            return model.workers.filter { $0.specialization == "Pool Service" }
         }
     }
 
@@ -46,42 +46,19 @@ struct WorkerListView: View {
     }
 
     private var workersHeader: some View {
-        HStack {
-            EngravedFont(text: "Workers", font: .system(size: 40, weight: .bold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .background(Color(.orange))
+        TabHeaderView(title: "Workers") { }
     }
 
     private var filterTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(WorkerFilter.allCases) { filter in
-                    filterButton(filter)
-                }
+        Picker("", selection: $selectedTab) {
+            ForEach(WorkerTab.allCases) { tab in
+                Text(tab.title).tag(tab)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
         }
+        .pickerStyle(.segmented)
+        .padding(.horizontal)
+        .padding(.vertical, 12)
         .background(Color(.systemGroupedBackground))
-    }
-
-    private func filterButton(_ filter: WorkerFilter) -> some View {
-        Button {
-            selectedFilter = filter
-        } label: {
-            Text(filter.rawValue)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(selectedFilter == filter ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(selectedFilter == filter ? Color.blue : Color(.secondarySystemGroupedBackground))
-                .clipShape(Capsule())
-        }
     }
 
     private var workerList: some View {
@@ -97,13 +74,12 @@ struct WorkerListView: View {
     }
 }
 
-enum WorkerFilter: String, CaseIterable, Identifiable {
+enum WorkerTab: String, CaseIterable, Identifiable {
+    case current = "Current"
     case all = "All"
-    case cleaner = "Cleaner"
-    case gardener = "Gardener"
-    case poolService = "Pool Service"
 
     var id: String { rawValue }
+    var title: String { rawValue }
 }
 
 #Preview {
