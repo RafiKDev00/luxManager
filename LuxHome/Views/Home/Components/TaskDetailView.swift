@@ -16,6 +16,8 @@ struct TaskDetailView: View {
 
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedSubtaskId: UUID?
+    @State private var showingDeleteAlert = false
+    @State private var isEditMode = false
 
     var subtasks: [LuxSubTask] {
         model.getSubtasks(for: task.id)
@@ -36,6 +38,37 @@ struct TaskDetailView: View {
         }
         .navigationTitle(task.name)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isEditMode.toggle()
+                } label: {
+                    Text(isEditMode ? "Done" : "Edit")
+                }
+            }
+
+            if isEditMode {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(role: .destructive) {
+                        showingDeleteAlert = true
+                    } label: {
+                        Text("Delete Task")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+        .alert("Delete Task", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) {
+                isEditMode = false
+            }
+            Button("Delete", role: .destructive) {
+                model.deleteTask(task.id)
+                dismiss()
+            }
+        } message: {
+            Text("Are you sure you want to delete this task? This action cannot be undone.")
+        }
         .photosPicker(
             isPresented: isPhotoPickerPresented,
             selection: $selectedPhotoItem,
@@ -55,7 +88,7 @@ struct TaskDetailView: View {
         VStack(spacing: 0) {
             List {
                 Section {
-                    SubtaskRowView(subtasks: subtasks, onPhotoTap: handlePhotoTapRequest)
+                    SubtaskRowView(subtasks: subtasks, isEditMode: isEditMode, onPhotoTap: handlePhotoTapRequest)
                 } header: {
                     subtaskSectionHeader
                 }
@@ -100,13 +133,42 @@ struct TaskDetailView: View {
 
 struct SubtaskRowView: View {
     @Environment(LuxHomeModel.self) private var model
+    @State private var subtaskToDelete: UUID?
 
     let subtasks: [LuxSubTask]
+    let isEditMode: Bool
     let onPhotoTap: (UUID) -> Void
 
     var body: some View {
         ForEach(Array(subtasks.enumerated()), id: \.element.id) { index, subtask in
             subtaskRow(for: subtask, at: index)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    deleteButton(for: subtask.id)
+                }
+        }
+        .alert("Delete Subtask", isPresented: Binding(
+            get: { subtaskToDelete != nil },
+            set: { if !$0 { subtaskToDelete = nil } }
+        )) {
+            Button("Cancel", role: .cancel) {
+                subtaskToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let id = subtaskToDelete {
+                    model.deleteSubtask(id)
+                    subtaskToDelete = nil
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this subtask?")
+        }
+    }
+
+    private func deleteButton(for subtaskId: UUID) -> some View {
+        Button(role: .destructive) {
+            subtaskToDelete = subtaskId
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
@@ -114,6 +176,20 @@ struct SubtaskRowView: View {
         HStack {
             subtaskInfo(for: subtask)
             Spacer()
+
+            if isEditMode {
+                // Show swipe indicator
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.caption)
+                        .foregroundStyle(.gray.opacity(0.5))
+                    Text("Swipe")
+                        .font(.caption2)
+                        .foregroundStyle(.gray.opacity(0.6))
+                }
+                .padding(.trailing, 8)
+            }
+
             subtaskActions(for: subtask)
         }
         .padding(.vertical, 12)
@@ -132,16 +208,27 @@ struct SubtaskRowView: View {
 
             Text(subtask.isCompleted ? "Completed" : "Incomplete")
                 .font(.caption)
-                .foregroundStyle(subtask.isCompleted ? .pink : .gray)
+                .foregroundStyle(subtask.isCompleted ? .orange : .gray)
         }
     }
 
     @ViewBuilder
     private func subtaskActions(for subtask: LuxSubTask) -> some View {
-        cameraOrCheckmarkButton(for: subtask)
+        if isEditMode {
+            Button {
+                subtaskToDelete = subtask.id
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+        } else {
+            cameraOrCheckmarkButton(for: subtask)
 
-        if !subtask.isCompleted {
-            manualCompletionButton(for: subtask)
+            if !subtask.isCompleted {
+                manualCompletionButton(for: subtask)
+            }
         }
     }
 
@@ -151,7 +238,7 @@ struct SubtaskRowView: View {
         } label: {
             Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "camera.fill")
                 .font(.system(size: 24))
-                .foregroundStyle(subtask.isCompleted ? .pink : .gray)
+                .foregroundStyle(subtask.isCompleted ? .orange : .gray)
         }
         .buttonStyle(.plain)
     }

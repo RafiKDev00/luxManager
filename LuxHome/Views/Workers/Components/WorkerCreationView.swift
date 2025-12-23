@@ -87,7 +87,7 @@ struct WorkerCreationView: View {
                     Text(spec).tag(spec)
                 }
             }
-            .tint(.pink)
+            .tint(.orange)
         } header: {
             Text("Specialization")
         }
@@ -114,7 +114,7 @@ struct WorkerCreationView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.pink)
+            .tint(.orange)
         } header: {
             Text("Schedule")
         }

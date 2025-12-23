@@ -33,10 +33,10 @@ struct ScheduledTaskCreationView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .tint(.pink)
+                    .tint(.orange)
 
                     Toggle("Recurring", isOn: $isRecurring)
-                        .tint(.pink)
+                        .tint(.orange)
                 } header: {
                     Text("Schedule")
                 }
@@ -51,7 +51,7 @@ struct ScheduledTaskCreationView: View {
                         addSubtask()
                     } label: {
                         Label("Add Subtask", systemImage: "plus.circle.fill")
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(.orange)
                     }
                 } header: {
                     Text("Subtasks")

@@ -44,7 +44,7 @@ struct ProjectCreationView: View {
     private var schedulingSection: some View {
         Section {
             DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
-                .tint(.pink)
+                .tint(.orange)
         } header: {
             Text("Timeline")
         }

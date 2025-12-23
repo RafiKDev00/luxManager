@@ -16,6 +16,9 @@ struct LuxTask: Identifiable, Codable {
     var isCompleted: Bool
     var completedSubtasks: Int
     var totalSubtasks: Int
+    let createdAt: Date
+    var isRecurring: Bool
+    var recurringDay: String? // e.g., "Monday", "Friday"
 
     init(
         id: UUID = UUID(),
@@ -25,7 +28,10 @@ struct LuxTask: Identifiable, Codable {
         lastCompletedDate: Date? = nil,
         isCompleted: Bool = false,
         completedSubtasks: Int = 0,
-        totalSubtasks: Int = 0
+        totalSubtasks: Int = 0,
+        createdAt: Date = Date(),
+        isRecurring: Bool = false,
+        recurringDay: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -35,6 +41,9 @@ struct LuxTask: Identifiable, Codable {
         self.isCompleted = isCompleted
         self.completedSubtasks = completedSubtasks
         self.totalSubtasks = totalSubtasks
+        self.createdAt = createdAt
+        self.isRecurring = isRecurring
+        self.recurringDay = recurringDay
     }
 }
 

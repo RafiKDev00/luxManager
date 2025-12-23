@@ -53,7 +53,7 @@ struct WorkerListView: View {
         }
         .padding(.horizontal)
         .padding(.top, 8)
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.orange))
     }
 
     private var filterTabs: some View {

@@ -19,24 +19,10 @@ struct ToDobject: View {
                 StatusHeaderView()
 
                 List {
-                    if !model.overdueTasks.isEmpty {
-                        Section {
-                            TaskRowView(tasks: model.overdueTasks)
-                        } header: {
-                            SectionHeaderView(title: "Overdue", color: .primary)
-                        }
-                    }
                     Section {
-                        TaskRowView(tasks: model.todayTasks)
+                        TaskRowView(tasks: model.incompleteTasks)
                     } header: {
-                        SectionHeaderView(title: "Today", color: .primary)
-                    }
-                    if !model.weekTasks.isEmpty {
-                        Section {
-                            TaskRowView(tasks: model.weekTasks)
-                        } header: {
-                            SectionHeaderView(title: "Week", color: .primary)
-                        }
+                        SectionHeaderView(title: "Tasks", color: .primary)
                     }
                 }
                 .listStyle(.plain)

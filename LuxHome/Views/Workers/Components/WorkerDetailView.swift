@@ -181,7 +181,7 @@ struct WorkerDetailView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.pink)
+                        .background(Color.orange)
                         .clipShape(Capsule())
                 } else {
                     Toggle("", isOn: .constant(false))

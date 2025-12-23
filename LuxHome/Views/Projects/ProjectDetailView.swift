@@ -16,6 +16,7 @@ struct ProjectDetailView: View {
 
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingProgressLogEntry = false
+    @State private var showingDeleteAlert = false
 
     private var project: LuxProject {
         model.projects.first(where: { $0.id == projectId }) ?? LuxProject(
@@ -40,6 +41,25 @@ struct ProjectDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(project.name)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    showingDeleteAlert = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .alert("Delete Project", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                model.deleteProject(projectId)
+                dismiss()
+            }
+        } message: {
+            Text("Are you sure you want to delete this project? This action cannot be undone.")
+        }
         .onChange(of: selectedPhotoItem) { _, newItem in
             handlePhotoSelection(newItem)
         }
@@ -69,7 +89,7 @@ struct ProjectDetailView: View {
                 Button {
                 } label: {
                     Image(systemName: "pencil")
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.orange)
                 }
             }
             .padding(16)
@@ -100,7 +120,7 @@ struct ProjectDetailView: View {
                 .overlay(
                     Image(systemName: "plus")
                         .font(.system(size: 40))
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.orange)
                 )
         }
     }
@@ -126,7 +146,7 @@ struct ProjectDetailView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.orange)
                 }
             }
             ForEach(project.progressLog) { entry in

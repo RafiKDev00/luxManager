@@ -24,7 +24,7 @@ struct ProjectListView: View {
     }
 
     private var projectList: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 16) {
             projectsHeader
 
             List {
@@ -43,7 +43,7 @@ struct ProjectListView: View {
         EngravedFont(text: "Projects", font: .system(size: 40, weight: .bold))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
-            .background(Color(.systemGroupedBackground))
+            .background(Color(.orange))
     }
 }
 

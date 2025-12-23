@@ -18,6 +18,7 @@ class LuxHomeModel {
     var subtasks: [LuxSubTask] = []
     var projects: [LuxProject] = []
     var workers: [LuxWorker] = []
+    var history: [HistoryEntry] = []
     var isLoading: Bool = false
     var errorMessage: String?
     var showToast: Bool = false
@@ -25,49 +26,15 @@ class LuxHomeModel {
 
     // MARK: - Computed Properties
 
-    // Overdue tasks
-    var overdueTasks: [LuxTask] {
-        tasks.filter { $0.status == "Overdue" && !$0.isCompleted }
-    }
-
-    // Today's tasks (excluding overdue)
-    var todayTasks: [LuxTask] {
-        tasks.filter { task in
-            !task.isCompleted &&
-            task.status != "Overdue" &&
-            (task.status == "Active" || task.status == "To Do")
-        }
-    }
-
-    // Week tasks (excluding today's tasks and overdue)
-    var weekTasks: [LuxTask] {
-        tasks.filter { task in
-            !task.isCompleted &&
-            task.status != "Overdue" &&
-            task.status != "Active" &&
-            task.status != "To Do"
-        }
-    }
-
-    var todayTasksCompleted: Int {
-        tasks.filter { $0.isCompleted && isToday($0.lastCompletedDate) }.count
-    }
-
-    var todayTasksTotal: Int {
-        todayTasks.count
-    }
-
-    var weekTasksCompleted: Int {
-        tasks.filter { $0.isCompleted && isThisWeek($0.lastCompletedDate) }.count
-    }
-
-    var weekTasksTotal: Int {
-        tasks.count
+    // All incomplete tasks
+    var incompleteTasks: [LuxTask] {
+        tasks.filter { !$0.isCompleted }
     }
 
     // MARK: - Initialization
     private init() {
         loadSampleData()
+        checkAndResetRecurringTasks()
     }
 
     // MARK: - Sample Data (For Previews & Development)
@@ -282,17 +249,125 @@ class LuxHomeModel {
         ]
     }
 
+    static var sampleHistory: [HistoryEntry] {
+        let now = Date()
+        let oneHourAgo = now.addingTimeInterval(-3600)
+        let twoHoursAgo = now.addingTimeInterval(-7200)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: now)!
+        let threeDaysAgo = Calendar.current.date(byAdding: .day, value: -3, to: now)!
+        let fiveDaysAgo = Calendar.current.date(byAdding: .day, value: -5, to: now)!
+        let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: now)!
+        let tenDaysAgo = Calendar.current.date(byAdding: .day, value: -10, to: now)!
+
+        return [
+            HistoryEntry(
+                timestamp: now,
+                action: .completed,
+                itemType: .subtask,
+                itemName: "Apply primer coat"
+            ),
+            HistoryEntry(
+                timestamp: oneHourAgo,
+                action: .photoAdded,
+                itemType: .subtask,
+                itemName: "Move furniture to center",
+                photoURL: "sample://photo1"
+            ),
+            HistoryEntry(
+                timestamp: twoHoursAgo,
+                action: .edited,
+                itemType: .project,
+                itemName: "Kitchen Renovation"
+            ),
+            HistoryEntry(
+                timestamp: yesterday,
+                action: .completed,
+                itemType: .task,
+                itemName: "Schedule Electrical Inspection"
+            ),
+            HistoryEntry(
+                timestamp: yesterday.addingTimeInterval(-3600),
+                action: .photoAdded,
+                itemType: .project,
+                itemName: "Garden Remodel",
+                photoURL: "sample://irrigation_photo"
+            ),
+            HistoryEntry(
+                timestamp: yesterday.addingTimeInterval(-7200),
+                action: .created,
+                itemType: .worker,
+                itemName: "Maria Rodriguez"
+            ),
+            HistoryEntry(
+                timestamp: twoDaysAgo,
+                action: .deleted,
+                itemType: .subtask,
+                itemName: "Old subtask that was removed"
+            ),
+            HistoryEntry(
+                timestamp: twoDaysAgo.addingTimeInterval(-3600),
+                action: .created,
+                itemType: .project,
+                itemName: "Kitchen Renovation"
+            ),
+            HistoryEntry(
+                timestamp: threeDaysAgo,
+                action: .completed,
+                itemType: .subtask,
+                itemName: "Turn off water supply"
+            ),
+            HistoryEntry(
+                timestamp: threeDaysAgo.addingTimeInterval(-1800),
+                action: .edited,
+                itemType: .task,
+                itemName: "Fix Leaking Bathroom Faucet"
+            ),
+            HistoryEntry(
+                timestamp: fiveDaysAgo,
+                action: .created,
+                itemType: .task,
+                itemName: "Install New Kitchen Cabinets"
+            ),
+            HistoryEntry(
+                timestamp: fiveDaysAgo.addingTimeInterval(-3600),
+                action: .created,
+                itemType: .task,
+                itemName: "Paint Living Room Walls"
+            ),
+            HistoryEntry(
+                timestamp: oneWeekAgo,
+                action: .deleted,
+                itemType: .task,
+                itemName: "Old task that was deleted"
+            ),
+            HistoryEntry(
+                timestamp: oneWeekAgo.addingTimeInterval(-3600),
+                action: .photoAdded,
+                itemType: .subtask,
+                itemName: "Call city inspector",
+                photoURL: "sample://photo3"
+            ),
+            HistoryEntry(
+                timestamp: tenDaysAgo,
+                action: .created,
+                itemType: .project,
+                itemName: "Garden Remodel"
+            )
+        ]
+    }
+
     // MARK: - Data Methods
     func loadSampleData() {
         tasks = LuxHomeModel.sampleTasks
         subtasks = LuxHomeModel.sampleSubtasks
         projects = LuxHomeModel.sampleProjects
         workers = LuxHomeModel.sampleWorkers
+        history = LuxHomeModel.sampleHistory
     }
 
     static var sampleSubtasks: [LuxSubTask] {
-        [
-            // Subtasks for "Install New Kitchen Cabinets"
+        let kitchenCabinetSubtasks = [
             LuxSubTask(name: "Remove old cabinet doors", isCompleted: false, taskId: sampleTaskId1),
             LuxSubTask(name: "Disconnect plumbing and electrical", isCompleted: false, taskId: sampleTaskId1),
             LuxSubTask(name: "Remove old cabinet boxes", isCompleted: false, taskId: sampleTaskId1),
@@ -300,33 +375,49 @@ class LuxHomeModel {
             LuxSubTask(name: "Install new cabinet boxes", isCompleted: false, taskId: sampleTaskId1),
             LuxSubTask(name: "Level and secure cabinets", isCompleted: false, taskId: sampleTaskId1),
             LuxSubTask(name: "Install cabinet doors and hardware", isCompleted: false, taskId: sampleTaskId1),
-            LuxSubTask(name: "Reconnect plumbing and electrical", isCompleted: false, taskId: sampleTaskId1),
+            LuxSubTask(name: "Reconnect plumbing and electrical", isCompleted: false, taskId: sampleTaskId1)
+        ]
 
-            // Subtasks for "Paint Living Room Walls"
+        let paintingSubtasks = [
             LuxSubTask(name: "Move furniture to center", isCompleted: true, taskId: sampleTaskId2, photoURL: "sample://photo1"),
             LuxSubTask(name: "Tape edges and trim", isCompleted: true, taskId: sampleTaskId2),
             LuxSubTask(name: "Apply primer coat", isCompleted: true, taskId: sampleTaskId2, photoURL: "sample://photo2"),
             LuxSubTask(name: "Apply first paint coat", isCompleted: false, taskId: sampleTaskId2),
             LuxSubTask(name: "Apply second paint coat", isCompleted: false, taskId: sampleTaskId2),
-            LuxSubTask(name: "Clean up and move furniture back", isCompleted: false, taskId: sampleTaskId2),
+            LuxSubTask(name: "Clean up and move furniture back", isCompleted: false, taskId: sampleTaskId2)
+        ]
 
-            // Subtasks for "Fix Leaking Bathroom Faucet"
+        let faucetSubtasks = [
             LuxSubTask(name: "Turn off water supply", isCompleted: true, taskId: sampleTaskId3),
             LuxSubTask(name: "Disassemble faucet", isCompleted: false, taskId: sampleTaskId3),
             LuxSubTask(name: "Replace washer and O-rings", isCompleted: false, taskId: sampleTaskId3),
-            LuxSubTask(name: "Reassemble and test for leaks", isCompleted: false, taskId: sampleTaskId3),
+            LuxSubTask(name: "Reassemble and test for leaks", isCompleted: false, taskId: sampleTaskId3)
+        ]
 
-            // Subtasks for "Schedule Electrical Inspection" (all completed)
+        let inspectionSubtasks = [
             LuxSubTask(name: "Call city inspector", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo3"),
             LuxSubTask(name: "Schedule appointment", isCompleted: true, taskId: sampleTaskId4),
-            LuxSubTask(name: "Prepare documentation", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo4"),
+            LuxSubTask(name: "Prepare documentation", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo4")
+        ]
 
-            // Single subtasks with same name as task (for tasks with no custom subtasks)
+        let singleSubtasks = [
             LuxSubTask(name: "Get Roof Inspection", isCompleted: false, taskId: sampleTaskId5),
             LuxSubTask(name: "Install New Light Fixtures", isCompleted: false, taskId: sampleTaskId6),
             LuxSubTask(name: "Order New Appliances", isCompleted: false, taskId: sampleTaskId7),
             LuxSubTask(name: "Plan Landscaping Project", isCompleted: false, taskId: sampleTaskId8)
         ]
+
+        return kitchenCabinetSubtasks + paintingSubtasks + faucetSubtasks + inspectionSubtasks + singleSubtasks
+    }
+
+    private func logHistory(action: HistoryAction, itemType: HistoryItemType, itemName: String, photoURL: String? = nil) {
+        let entry = HistoryEntry(
+            action: action,
+            itemType: itemType,
+            itemName: itemName,
+            photoURL: photoURL
+        )
+        history.insert(entry, at: 0)
     }
 
     // MARK: - Task Management
@@ -335,6 +426,7 @@ class LuxHomeModel {
             tasks[index].isCompleted.toggle()
             if tasks[index].isCompleted {
                 tasks[index].lastCompletedDate = Date()
+                logHistory(action: .completed, itemType: .task, itemName: tasks[index].name)
             }
         }
     }
@@ -342,6 +434,7 @@ class LuxHomeModel {
     func updateTask(_ task: LuxTask) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = task
+            logHistory(action: .edited, itemType: .task, itemName: task.name)
         }
     }
 
@@ -359,10 +452,13 @@ class LuxHomeModel {
             lastCompletedDate: nil,
             isCompleted: false,
             completedSubtasks: 0,
-            totalSubtasks: finalSubtaskNames.count
+            totalSubtasks: finalSubtaskNames.count,
+            isRecurring: isRecurring,
+            recurringDay: isRecurring ? dueDay : nil
         )
 
         tasks.append(newTask)
+        logHistory(action: .created, itemType: .task, itemName: name)
 
         for subtaskName in finalSubtaskNames {
             let subtask = LuxSubTask(
@@ -374,8 +470,42 @@ class LuxHomeModel {
         }
     }
 
+    func checkAndResetRecurringTasks() {
+        let calendar = Calendar.current
+        let today = Date()
+        let currentWeekday = calendar.component(.weekday, from: today)
+        let weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        let todayName = weekdayNames[currentWeekday - 1]
+
+        for index in tasks.indices {
+            let task = tasks[index]
+            guard task.isRecurring, let recurringDay = task.recurringDay else { continue }
+
+            if recurringDay == todayName && task.isCompleted {
+                resetTaskForNewWeek(at: index, taskId: task.id)
+            }
+        }
+    }
+
+    private func resetTaskForNewWeek(at taskIndex: Int, taskId: UUID) {
+        tasks[taskIndex].isCompleted = false
+        tasks[taskIndex].completedSubtasks = 0
+        resetSubtasksForTask(taskId)
+    }
+
+    private func resetSubtasksForTask(_ taskId: UUID) {
+        for subtaskIndex in subtasks.indices {
+            if subtasks[subtaskIndex].taskId == taskId {
+                subtasks[subtaskIndex].isCompleted = false
+            }
+        }
+    }
+
     func deleteTask(_ taskId: UUID) {
-        tasks.removeAll { $0.id == taskId }
+        if let task = tasks.first(where: { $0.id == taskId }) {
+            logHistory(action: .deleted, itemType: .task, itemName: task.name)
+            tasks.removeAll { $0.id == taskId }
+        }
     }
 
     // MARK: - SubTask Management
@@ -391,6 +521,11 @@ class LuxHomeModel {
     func toggleSubtaskCompletion(_ subtaskId: UUID) {
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
             subtasks[index].isCompleted.toggle()
+
+            if subtasks[index].isCompleted {
+                logHistory(action: .completed, itemType: .subtask, itemName: subtasks[index].name)
+            }
+
             updateTaskSubtaskCounts(subtasks[index].taskId)
         }
     }
@@ -398,6 +533,7 @@ class LuxHomeModel {
     func deleteSubtask(_ subtaskId: UUID) {
         if let subtask = subtasks.first(where: { $0.id == subtaskId }) {
             let taskId = subtask.taskId
+            logHistory(action: .deleted, itemType: .subtask, itemName: subtask.name)
             subtasks.removeAll { $0.id == subtaskId }
             updateTaskSubtaskCounts(taskId)
         }
@@ -407,6 +543,7 @@ class LuxHomeModel {
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
             subtasks[index].photoURL = photoURL
             subtasks[index].isCompleted = true
+            logHistory(action: .photoAdded, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
             updateTaskSubtaskCounts(subtasks[index].taskId)
         }
     }
@@ -437,11 +574,13 @@ class LuxHomeModel {
             nextStep: nextStep
         )
         projects.append(newProject)
+        logHistory(action: .created, itemType: .project, itemName: name)
     }
 
     func addPhotoToProject(_ projectId: UUID, photoURL: String) {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].photoURLs.append(photoURL)
+            logHistory(action: .photoAdded, itemType: .project, itemName: projects[index].name, photoURL: photoURL)
         }
     }
 
@@ -459,6 +598,14 @@ class LuxHomeModel {
     func updateProjectNextStep(_ projectId: UUID, nextStep: String) {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].nextStep = nextStep
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func deleteProject(_ projectId: UUID) {
+        if let project = projects.first(where: { $0.id == projectId }) {
+            logHistory(action: .deleted, itemType: .project, itemName: project.name)
+            projects.removeAll { $0.id == projectId }
         }
     }
 
@@ -474,6 +621,7 @@ class LuxHomeModel {
             scheduleType: scheduleType
         )
         workers.append(newWorker)
+        logHistory(action: .created, itemType: .worker, itemName: name)
     }
 
     func toggleWorkerSchedule(_ workerId: UUID, isScheduled: Bool) {
@@ -506,6 +654,7 @@ class LuxHomeModel {
             workers[index].email = email
             workers[index].specialization = specialization
             workers[index].serviceTypes = serviceTypes
+            logHistory(action: .edited, itemType: .worker, itemName: name)
         }
     }
 
@@ -562,15 +711,4 @@ class LuxHomeModel {
         }
     }
 
-    private func isToday(_ date: Date?) -> Bool {
-        guard let date = date else { return false }
-        return Calendar.current.isDateInToday(date)
-    }
-
-    private func isThisWeek(_ date: Date?) -> Bool {
-        guard let date = date else { return false }
-        let calendar = Calendar.current
-        let now = Date()
-        return calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
-    }
 }
