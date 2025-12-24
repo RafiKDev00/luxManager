@@ -186,7 +186,8 @@ struct ProjectDetailView: View {
                                 }
                             }
                             .padding(.vertical, 10)
-                            .padding(.horizontal, 12)
+                            .padding(.leading, 12)
+                            .padding(.trailing, 36)
                             .background(Color(.systemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
