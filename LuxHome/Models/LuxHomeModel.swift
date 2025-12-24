@@ -612,6 +612,7 @@ class LuxHomeModel {
                 photoURL: photoURL
             )
             projects[index].progressLog.insert(entry, at: 0)
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
         }
     }
 

@@ -174,7 +174,7 @@ struct ProjectDetailView: View {
             sectionHeader("Next Step")
             HStack {
                 if isEditingNextStep {
-                    ZStack(alignment: .trailing) {
+                    ZStack(alignment: .topTrailing) {
                         TextField("Next Step", text: $draftNextStep, axis: .vertical)
                             .lineLimit(2...4)
                             .tint(.orange)
@@ -199,6 +199,7 @@ struct ProjectDetailView: View {
                                     .foregroundStyle(.orange)
                                     .font(.system(size: 16, weight: .semibold))
                             }
+                            .padding(.top, 8)
                             .padding(.trailing, 8)
                         }
                     }
@@ -249,9 +250,7 @@ struct ProjectDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     addPhotoButton
-                    ForEach(project.photoURLs, id: \.self) { photoURL in
-                        photoThumbnail
-                    }
+                    photoThumbnail
                 }
             }
         }
@@ -271,14 +270,26 @@ struct ProjectDetailView: View {
     }
 
     private var photoThumbnail: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(.tertiarySystemGroupedBackground))
-            .frame(width: 140, height: 100)
-            .overlay(
-                Image(systemName: "photo")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.secondary)
-            )
+        ForEach(project.photoURLs, id: \.self) { urlString in
+            if let url = URL(string: urlString),
+               let data = try? Data(contentsOf: url),
+               let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 140, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.tertiarySystemGroupedBackground))
+                    .frame(width: 140, height: 100)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.secondary)
+                    )
+            }
+        }
     }
 
     private var progressLogSection: some View {
@@ -310,8 +321,8 @@ struct ProjectDetailView: View {
                 .font(.body)
                 .foregroundStyle(.primary)
 
-            if entry.photoURL != nil {
-                photoThumbnail
+            if let urlString = entry.photoURL {
+                entryPhotoView(urlString: urlString)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -357,9 +368,25 @@ struct ProjectDetailView: View {
 
         Task {
             if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                model.addPhotoToProject(projectId, photoURL: "placeholder://photo")
+                let filename = "\(UUID().uuidString).jpg"
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                try? data.write(to: tempURL)
+                model.addPhotoToProject(projectId, photoURL: tempURL.absoluteString)
             }
             selectedPhotoItem = nil
+        }
+    }
+
+    @ViewBuilder
+    private func entryPhotoView(urlString: String) -> some View {
+        if let url = URL(string: urlString),
+           let data = try? Data(contentsOf: url),
+           let uiImage = UIImage(data: data) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 140, height: 100)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 
