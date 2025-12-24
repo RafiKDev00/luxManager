@@ -12,6 +12,7 @@ struct HistoryView: View {
     @State private var searchText = ""
     @State private var selectedEntry: HistoryEntry?
     @State private var showingPhotoDetail = false
+    @FocusState private var isSearchFocused: Bool
 
     var filteredHistory: [HistoryEntry] {
         guard !searchText.isEmpty else { return model.history }
@@ -44,7 +45,7 @@ struct HistoryView: View {
                 }
             }
             .safeAreaBar(edge: .bottom) {
-                HistorySearchBar(searchText: $searchText)
+                HistorySearchBar(searchText: $searchText, isFocused: $isSearchFocused)
             }
             .navigationTitle("")
             .navigationBarHidden(true)

@@ -54,6 +54,7 @@ struct HistoryListView: View {
             }
             .padding(.vertical, 12)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func formattedDate(_ date: Date) -> String {
