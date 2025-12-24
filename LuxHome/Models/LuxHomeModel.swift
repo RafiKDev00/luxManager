@@ -533,6 +533,25 @@ class LuxHomeModel {
         updateTaskSubtaskCounts(subtask.taskId)
     }
 
+    func createSubtask(taskId: UUID, name: String) {
+        let subtask = LuxSubTask(
+            id: UUID(),
+            name: name,
+            isCompleted: false,
+            taskId: taskId,
+            photoURL: nil
+        )
+        addSubtask(subtask)
+        logHistory(action: .created, itemType: .subtask, itemName: name)
+    }
+
+    func updateSubtaskName(_ subtaskId: UUID, name: String) {
+        if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
+            subtasks[index].name = name
+            logHistory(action: .edited, itemType: .subtask, itemName: name)
+        }
+    }
+
     func toggleSubtaskCompletion(_ subtaskId: UUID) {
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
             subtasks[index].isCompleted.toggle()

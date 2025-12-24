@@ -18,6 +18,8 @@ struct TaskDetailView: View {
     @State private var selectedSubtaskId: UUID?
     @State private var showingDeleteAlert = false
     @State private var isEditMode = false
+    @State private var isAddingSubtask = false
+    @State private var newSubtaskName: String = ""
 
     var subtasks: [LuxSubTask] {
         model.getSubtasks(for: task.id)
@@ -88,13 +90,26 @@ struct TaskDetailView: View {
         VStack(spacing: 0) {
             List {
                 Section {
-                    SubtaskRowView(subtasks: subtasks, isEditMode: isEditMode, onPhotoTap: handlePhotoTapRequest)
+                    if isAddingSubtask {
+                        newSubtaskInputRow
+                    }
+                    SubtaskRowView(
+                        subtasks: subtasks,
+                        isEditMode: isEditMode,
+                        onPhotoTap: handlePhotoTapRequest,
+                        onRename: handleRenameSubtask
+                    )
                 } header: {
                     subtaskSectionHeader
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            addSubtaskPencil
+                .padding(.trailing, 20)
+                .padding(.bottom, 12)
         }
     }
 
@@ -119,10 +134,84 @@ struct TaskDetailView: View {
         }
     }
 
+    private func createSubtask() {
+        let trimmed = newSubtaskName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        model.createSubtask(taskId: task.id, name: trimmed)
+        newSubtaskName = ""
+        isAddingSubtask = false
+    }
+
+    private func handleRenameSubtask(_ id: UUID, _ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        model.updateSubtaskName(id, name: trimmed)
+    }
+
     private func uploadPhotoAndCompleteSubtask(_ photoItem: PhotosPickerItem, for subtaskId: UUID) async {
         if let data = try? await photoItem.loadTransferable(type: Data.self) {
             model.updateSubtaskPhoto(subtaskId, photoURL: "placeholder://photo")
         }
+    }
+
+    private var addSubtaskPencil: some View {
+        Button {
+            withAnimation(.easeInOut) {
+                isAddingSubtask.toggle()
+                if !isAddingSubtask {
+                    newSubtaskName = ""
+                }
+            }
+        } label: {
+            Image(systemName: isAddingSubtask ? "xmark.circle.fill" : "pencil.circle.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.orange)
+                .background(
+                    Circle()
+                        .fill(Color(.secondarySystemGroupedBackground))
+                        .frame(width: 40, height: 40)
+                )
+        }
+        .buttonStyle(.plain)
+        .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+    }
+
+    private var newSubtaskInputRow: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("New subtask", text: $newSubtaskName)
+                    .tint(.orange)
+                    .onSubmit { createSubtask() }
+            }
+
+            Spacer()
+
+            Button {
+                newSubtaskName = ""
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.orange)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                createSubtask()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.blue)
+            }
+            .buttonStyle(.plain)
+            .disabled(newSubtaskName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .opacity(newSubtaskName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1.0)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(Color(.secondarySystemGroupedBackground))
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 32))
+        .listRowBackground(Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func clearPhotoSelection() {
@@ -134,10 +223,12 @@ struct TaskDetailView: View {
 struct SubtaskRowView: View {
     @Environment(LuxHomeModel.self) private var model
     @State private var subtaskToDelete: UUID?
+    @State private var nameDrafts: [UUID: String] = [:]
 
     let subtasks: [LuxSubTask]
     let isEditMode: Bool
     let onPhotoTap: (UUID) -> Void
+    let onRename: (UUID, String) -> Void
 
     var body: some View {
         ForEach(Array(subtasks.enumerated()), id: \.element.id) { index, subtask in
@@ -177,24 +268,12 @@ struct SubtaskRowView: View {
             subtaskInfo(for: subtask)
             Spacer()
 
-            if isEditMode {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.caption)
-                        .foregroundStyle(.gray.opacity(0.5))
-                    Text("Swipe")
-                        .font(.caption2)
-                        .foregroundStyle(.gray.opacity(0.6))
-                }
-                .padding(.trailing, 8)
-            }
-
             subtaskActions(for: subtask)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
         .background(Color(.secondarySystemGroupedBackground))
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 32))
         .listRowBackground(Color.clear)
         .listRowSeparator(index == subtasks.count - 1 ? .hidden : .visible, edges: .bottom)
         .clipShape(rowShape(for: index))
@@ -202,8 +281,24 @@ struct SubtaskRowView: View {
 
     private func subtaskInfo(for subtask: LuxSubTask) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(subtask.name)
-                .font(.headline)
+            if isEditMode {
+                TextField(
+                    "Subtask name",
+                    text: Binding(
+                        get: { nameDrafts[subtask.id] ?? subtask.name },
+                        set: { nameDrafts[subtask.id] = $0 }
+                    ),
+                    onCommit: {
+                        let text = (nameDrafts[subtask.id] ?? subtask.name)
+                        onRename(subtask.id, text)
+                    }
+                )
+                .textFieldStyle(.roundedBorder)
+                .tint(.orange)
+            } else {
+                Text(subtask.name)
+                    .font(.headline)
+            }
 
             Text(subtask.isCompleted ? "Completed" : "Incomplete")
                 .font(.caption)
@@ -214,14 +309,37 @@ struct SubtaskRowView: View {
     @ViewBuilder
     private func subtaskActions(for subtask: LuxSubTask) -> some View {
         if isEditMode {
-            Button {
-                subtaskToDelete = subtask.id
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(.red)
+            HStack(spacing: 10) {
+                Button {
+                    subtaskToDelete = subtask.id
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    nameDrafts[subtask.id] = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    let text = (nameDrafts[subtask.id] ?? subtask.name).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty {
+                        onRename(subtask.id, text)
+                    }
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         } else {
             cameraOrCheckmarkButton(for: subtask)
 
