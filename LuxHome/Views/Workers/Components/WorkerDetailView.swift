@@ -13,6 +13,16 @@ struct WorkerDetailView: View {
 
     let workerId: UUID
     @State private var showingDeleteAlert = false
+    @State private var isEditing = false
+    @State private var draftName: String = ""
+    @State private var draftCompany: String = ""
+    @State private var draftPhone: String = ""
+    @State private var draftEmail: String = ""
+    @State private var draftSpecialization: String = ""
+    @State private var draftServicesList: [String] = []
+    @State private var newServiceEntry: String = ""
+    @State private var draftSchedule: ScheduleType = .oneTime
+    @State private var validationError: String?
 
     private var worker: LuxWorker {
         model.workers.first(where: { $0.id == workerId }) ?? LuxWorker(
@@ -27,9 +37,24 @@ struct WorkerDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                workerInfoSection
-                servicesSection
-                scheduleSection
+                if isEditing {
+                    WorkerEditForm(
+                        name: $draftName,
+                        company: $draftCompany,
+                        phone: $draftPhone,
+                        email: $draftEmail,
+                        specialization: $draftSpecialization,
+                        serviceTags: $draftServicesList,
+                        newServiceEntry: $newServiceEntry,
+                        schedule: $draftSchedule
+                    ) {
+                        showingDeleteAlert = true
+                    }
+                } else {
+                    workerInfoSection
+                    servicesSection
+                    scheduleSection
+                }
                 scheduledVisitsSection
                 projectsSection
             }
@@ -41,10 +66,15 @@ struct WorkerDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
-                    showingDeleteAlert = true
-                } label: {
-                    Image(systemName: "trash")
+                Button(isEditing ? "Done" : "Edit") {
+                    if isEditing {
+                        saveEdits()
+                    } else {
+                        loadDrafts()
+                    }
+                    withAnimation(.easeInOut) {
+                        isEditing.toggle()
+                    }
                 }
             }
         }
@@ -57,6 +87,16 @@ struct WorkerDetailView: View {
         } message: {
             Text("Are you sure you want to remove this worker? This will also unassign them from any projects.")
         }
+        .alert("Invalid Entry", isPresented: .constant(validationError != nil), actions: {
+            Button("OK", role: .cancel) {
+                validationError = nil
+            }
+        }, message: {
+            if let validationError {
+                Text(validationError)
+            }
+        })
+        .onAppear(perform: loadDrafts)
     }
 
     private var workerInfoSection: some View {
@@ -65,17 +105,47 @@ struct WorkerDetailView: View {
                 workerAvatar
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(worker.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
+                    if isEditing {
+                        TextField("Name", text: $draftName)
+                            .font(.title2)
+                            .fontWeight(.bold)
 
-                    Text(worker.company)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        TextField("Company", text: $draftCompany)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(worker.name)
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text(worker.company)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
-            contactButtons
+            if isEditing {
+                VStack(alignment: .leading, spacing: 12) {
+                    TextField("Phone", text: $draftPhone)
+                        .keyboardType(.phonePad)
+                        .padding(10)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    TextField("Email", text: $draftEmail)
+                        .keyboardType(.emailAddress)
+                        .padding(10)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    TextField("Specialization", text: $draftSpecialization)
+                        .textInputAutocapitalization(.words)
+                        .padding(10)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+            } else {
+                contactButtons
+            }
         }
     }
 
@@ -143,16 +213,29 @@ struct WorkerDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("Schedule Type")
 
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundStyle(.blue)
-                Text(worker.scheduleType.rawValue)
-                    .font(.body)
+            if isEditing {
+                Picker("Schedule", selection: $draftSchedule) {
+                    ForEach(ScheduleType.allCases, id: \.self) { type in
+                        Text(type.rawValue).tag(type)
+                    }
+                }
+                .pickerStyle(.menu)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.blue)
+                    Text(worker.scheduleType.rawValue)
+                        .font(.body)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 
@@ -292,6 +375,53 @@ struct WorkerDetailView: View {
         return (current, past)
     }
 
+    private func saveEdits() {
+        if !draftPhone.isEmpty && !isValidPhone(draftPhone) {
+            validationError = "Please enter a valid phone number."
+            return
+        }
+        if !draftEmail.isEmpty && !isValidEmail(draftEmail) {
+            validationError = "Please enter a valid email address."
+            return
+        }
+
+        model.updateWorker(
+            workerId,
+            name: draftName.isEmpty ? worker.name : draftName,
+            company: draftCompany.isEmpty ? worker.company : draftCompany,
+            phone: draftPhone.isEmpty ? worker.phone : draftPhone,
+            email: draftEmail.isEmpty ? worker.email : draftEmail,
+            specialization: draftSpecialization.isEmpty ? worker.specialization : draftSpecialization,
+            serviceTypes: draftServicesList
+        )
+        loadDrafts()
+    }
+
+    private func loadDrafts() {
+        draftName = worker.name
+        draftCompany = worker.company
+        draftPhone = worker.phone
+        draftEmail = worker.email ?? ""
+        draftSpecialization = worker.specialization
+        draftServicesList = worker.serviceTypes
+        newServiceEntry = ""
+        draftSchedule = worker.scheduleType
+    }
+
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            showingDeleteAlert = true
+        } label: {
+            Text("Delete Contact")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red.opacity(0.15))
+                .foregroundStyle(.red)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
             .font(.title2)
@@ -304,6 +434,17 @@ struct WorkerDetailView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
+        return NSPredicate(format: "SELF MATCHES[c] %@", pattern).evaluate(with: email)
+    }
+
+    private func isValidPhone(_ phone: String) -> Bool {
+        let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pattern = #"^[+0-9()\-\s]{7,}$"#
+        return NSPredicate(format: "SELF MATCHES %@", pattern).evaluate(with: trimmed)
     }
 }
 

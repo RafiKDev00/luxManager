@@ -45,12 +45,12 @@ struct RootTabView: View {
 
     var body: some View {
         TabView {
-            Tab("Maintenance", systemImage: "house") {
+            Tab("Maintenance", systemImage:  "checklist.unchecked" ) {
                 HomeView()
             }
             .badge(totalTaskCount)
 
-            Tab("Projects", systemImage: "checklist.unchecked") {
+            Tab("Projects", systemImage:  "wrench.and.screwdriver") {
                 ProjectView()
             }
 
