@@ -52,7 +52,9 @@ struct ProgressLogEntryView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         } header: {
             Text("Attach Photo")
         }

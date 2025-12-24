@@ -175,35 +175,27 @@ struct ProjectDetailView: View {
             sectionHeader("Next Step")
             HStack {
                 if isEditingNextStep {
-                    ZStack(alignment: .topTrailing) {
-                        TextField("Next Step", text: $draftNextStep, axis: .vertical)
-                            .lineLimit(2...4)
-                            .tint(.orange)
-                            .focused($isNextStepFocused)
-                            .onSubmit { saveNextStep() }
-                            .onChange(of: isNextStepFocused) { _, focused in
-                                if !focused {
-                                    saveNextStep()
-                                }
-                            }
-                            .padding(.vertical, 10)
-                            .padding(.leading, 12)
-                            .padding(.trailing, 36)
-                            .background(Color(.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    TextField("Next Step", text: $draftNextStep, axis: .vertical)
+                        .lineLimit(2...4)
+                        .tint(.orange)
+                        .focused($isNextStepFocused)
+                        .onSubmit { saveNextStep() }
+                        .padding(.vertical, 10)
+                        .padding(.leading, 12)
+                        .padding(.trailing, 12)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                        if !draftNextStep.isEmpty {
-                            Button {
-                                draftNextStep = ""
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.orange)
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .padding(.top, 8)
-                            .padding(.trailing, 8)
-                        }
+                    Spacer()
+
+                    Button {
+                        saveNextStep()
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.white, .blue)
                     }
+                    .buttonStyle(.plain)
                 } else {
                     Text(project.nextStep)
                         .font(.body)
@@ -259,15 +251,17 @@ struct ProjectDetailView: View {
 
     private var addPhotoButton: some View {
         PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(width: 140, height: 100)
-                .overlay(
-                    Image(systemName: "plus")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.orange)
-                )
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.tertiarySystemGroupedBackground))
+
+                Image(systemName: "plus")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.orange)
+            }
+            .frame(width: 140, height: 100)
         }
+        .buttonStyle(.borderless)
     }
 
     private var photoThumbnail: some View {

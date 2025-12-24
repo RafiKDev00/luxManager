@@ -34,6 +34,7 @@ struct NewSubtaskRow: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 24))
                     .foregroundStyle(.white, .blue)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -42,6 +43,7 @@ struct NewSubtaskRow: View {
                     .font(.system(size: 24))
                     .foregroundStyle(.white, .orange)
                     .rotationEffect(.degrees(45))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

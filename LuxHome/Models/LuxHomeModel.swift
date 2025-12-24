@@ -148,7 +148,7 @@ class LuxHomeModel {
                 description: "A comprehensive renovation of the backyard garden, including new landscaping, irrigation system, and a custom-built patio.",
                 dueDate: Calendar.current.date(byAdding: .month, value: 2, to: Date())!,
                 nextStep: "Approve final plant selections and confirm irrigation system layout.",
-                photoURLs: ["photo1", "photo2", "photo3"],
+                photoURLs: [],
                 progressLog: [
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -8, to: Date())!,
@@ -157,7 +157,7 @@ class LuxHomeModel {
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -6, to: Date())!,
                         text: "Demolition of old patio and removal of existing shrubbery. Area cleared for new construction.",
-                        photoURL: "demolition_photo"
+                        photoURL: nil
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -3, to: Date())!,
@@ -166,7 +166,7 @@ class LuxHomeModel {
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
                         text: "Irrigation lines installed in designated areas. Initial selection of drought-resistant plants received for review.",
-                        photoURL: "irrigation_photo"
+                        photoURL: nil
                     )
                 ]
             ),
@@ -179,7 +179,7 @@ class LuxHomeModel {
                 description: "Complete kitchen overhaul including new cabinets, countertops, appliances, and updated electrical work.",
                 dueDate: Calendar.current.date(byAdding: .month, value: 1, to: Date())!,
                 nextStep: "Install new countertops and backsplash.",
-                photoURLs: ["kitchen1", "kitchen2"],
+                photoURLs: [],
                 progressLog: [
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -5, to: Date())!,
@@ -188,7 +188,7 @@ class LuxHomeModel {
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -2, to: Date())!,
                         text: "New cabinets installed and leveled.",
-                        photoURL: "cabinets_photo"
+                        photoURL: nil
                     )
                 ]
             ),
