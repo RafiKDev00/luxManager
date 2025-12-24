@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 import PhotosUI
 
 struct ProjectDetailView: View {
@@ -271,23 +272,15 @@ struct ProjectDetailView: View {
 
     private var photoThumbnail: some View {
         ForEach(project.photoURLs, id: \.self) { urlString in
-            if let url = URL(string: urlString),
-               let data = try? Data(contentsOf: url),
-               let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
+            if let url = URL(string: urlString) {
+                KFImage(url)
+                    .placeholder { placeholderPhoto }
                     .resizable()
                     .scaledToFill()
                     .frame(width: 140, height: 100)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.tertiarySystemGroupedBackground))
-                    .frame(width: 140, height: 100)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 30))
-                            .foregroundStyle(.secondary)
-                    )
+                placeholderPhoto
             }
         }
     }
@@ -379,15 +372,27 @@ struct ProjectDetailView: View {
 
     @ViewBuilder
     private func entryPhotoView(urlString: String) -> some View {
-        if let url = URL(string: urlString),
-           let data = try? Data(contentsOf: url),
-           let uiImage = UIImage(data: data) {
-            Image(uiImage: uiImage)
+        if let url = URL(string: urlString) {
+            KFImage(url)
+                .placeholder { placeholderPhoto }
                 .resizable()
                 .scaledToFill()
                 .frame(width: 140, height: 100)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        } else {
+            placeholderPhoto
         }
+    }
+
+    private var placeholderPhoto: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color(.tertiarySystemGroupedBackground))
+            .frame(width: 140, height: 100)
+            .overlay(
+                Image(systemName: "photo")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.secondary)
+            )
     }
 
     private func saveNextStep() {
