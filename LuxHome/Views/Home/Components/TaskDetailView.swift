@@ -137,6 +137,7 @@ struct TaskDetailView: View {
     private func createSubtask() {
         let trimmed = newSubtaskName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        // Insert at end by creating, then moving it to the bottom position for this task
         model.createSubtask(taskId: task.id, name: trimmed)
         newSubtaskName = ""
         isAddingSubtask = false
@@ -281,24 +282,22 @@ struct SubtaskRowView: View {
 
     private func subtaskInfo(for subtask: LuxSubTask) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if isEditMode {
-                TextField(
-                    "Subtask name",
-                    text: Binding(
-                        get: { nameDrafts[subtask.id] ?? subtask.name },
-                        set: { nameDrafts[subtask.id] = $0 }
-                    ),
-                    onCommit: {
-                        let text = (nameDrafts[subtask.id] ?? subtask.name)
-                        onRename(subtask.id, text)
-                    }
-                )
-                .textFieldStyle(.roundedBorder)
-                .tint(.orange)
-            } else {
-                Text(subtask.name)
-                    .font(.headline)
-            }
+            TextField(
+                "Subtask name",
+                text: Binding(
+                    get: { nameDrafts[subtask.id] ?? subtask.name },
+                    set: { nameDrafts[subtask.id] = $0 }
+                ),
+                onCommit: {
+                    let text = (nameDrafts[subtask.id] ?? subtask.name)
+                    onRename(subtask.id, text)
+                }
+            )
+            .font(.headline)
+            .tint(.orange)
+            .disabled(!isEditMode)
+            .opacity(isEditMode ? 1 : 1)
+            .allowsHitTesting(isEditMode)
 
             Text(subtask.isCompleted ? "Completed" : "Incomplete")
                 .font(.caption)
@@ -374,8 +373,8 @@ struct SubtaskRowView: View {
     private func rowShape(for index: Int) -> UnevenRoundedRectangle {
         UnevenRoundedRectangle(
             topLeadingRadius: index == 0 ? 12 : 0,
-            bottomLeadingRadius: index == subtasks.count - 1 ? 12 : 0,
-            bottomTrailingRadius: index == subtasks.count - 1 ? 12 : 0,
+            bottomLeadingRadius: index == subtasks.count - 1 && !isEditMode ? 12 : 0,
+            bottomTrailingRadius: index == subtasks.count - 1 && !isEditMode ? 12 : 0,
             topTrailingRadius: index == 0 ? 12 : 0,
             style: .continuous
         )
