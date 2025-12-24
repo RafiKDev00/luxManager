@@ -74,22 +74,21 @@ struct WorkerEditForm: View {
                 }
             }
 
-            groupedFieldStack {
-                HStack {
+            HStack(spacing: 8) {
+                groupedFieldStack {
                     clearableField("Add service", text: $newServiceEntry)
-                    Button {
-                        addService()
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .semibold))
-                            .padding(12)
-                            .background(Color.orange)
-                            .foregroundStyle(.white)
-                            .clipShape(Circle())
-                    }
-                    .disabled(newServiceEntry.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .padding(.horizontal, 4)
+                Button {
+                    addService()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .padding(12)
+                        .background(Color.orange)
+                        .foregroundStyle(.white)
+                        .clipShape(Circle())
+                }
+                .disabled(newServiceEntry.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }
@@ -110,7 +109,7 @@ struct WorkerEditForm: View {
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
@@ -161,9 +160,9 @@ struct WorkerEditForm: View {
             .padding(.vertical, 2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .stroke(Color(.separator), lineWidth: 0.5)
             )
     }

@@ -28,6 +28,9 @@ struct HistoryActionIcon: View {
             case .photoAdded:
                 Image(systemName: "camera.circle.fill")
                     .foregroundStyle(.purple)
+            case .contacted:
+                Image(systemName: "phone.circle.fill")
+                    .foregroundStyle(.orange)
             }
         }
         .font(.system(size: 24))

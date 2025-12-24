@@ -23,6 +23,11 @@ struct WorkerDetailView: View {
     @State private var newServiceEntry: String = ""
     @State private var draftSchedule: ScheduleType = .oneTime
     @State private var validationError: String?
+    @State private var newVisitDate: Date = Date().addingTimeInterval(3600)
+    @State private var newVisitNotes: String = ""
+    @State private var newVisitFrequency: ScheduleType = .oneTime
+    @State private var showInlineAddVisit = false
+    @State private var contactError: String?
 
     private var worker: LuxWorker {
         model.workers.first(where: { $0.id == workerId }) ?? LuxWorker(
@@ -97,6 +102,15 @@ struct WorkerDetailView: View {
                 Text(validationError)
             }
         })
+        .alert("Unable to Complete", isPresented: .constant(contactError != nil), actions: {
+            Button("OK", role: .cancel) {
+                contactError = nil
+            }
+        }, message: {
+            if let contactError {
+                Text(contactError)
+            }
+        })
         .onAppear(perform: loadDrafts)
     }
 
@@ -164,9 +178,13 @@ struct WorkerDetailView: View {
 
     private var contactButtons: some View {
         HStack(spacing: 12) {
-            contactButton(icon: "phone.fill", text: "Call", action: {})
+            contactButton(icon: "phone.fill", text: "Call") {
+                contactAction(.call)
+            }
             if worker.email != nil {
-                contactButton(icon: "envelope.fill", text: "Email", action: {})
+                contactButton(icon: "envelope.fill", text: "Email") {
+                    contactAction(.email)
+                }
             }
         }
     }
@@ -220,6 +238,7 @@ struct WorkerDetailView: View {
                         Text(type.rawValue).tag(type)
                     }
                 }
+                .tint(.orange)
                 .pickerStyle(.menu)
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -246,6 +265,9 @@ struct WorkerDetailView: View {
                 sectionHeader("Scheduled Visits")
                 Spacer()
                 Button {
+                    withAnimation(.easeInOut) {
+                        showInlineAddVisit.toggle()
+                    }
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 24))
@@ -253,8 +275,46 @@ struct WorkerDetailView: View {
                 }
             }
 
-            ForEach(worker.scheduledVisits) { visit in
+            if let next = worker.nextVisit {
+                Text("Next Visit: \(formattedDateTime(next))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(worker.scheduledVisits.sorted(by: { $0.date < $1.date })) { visit in
                 scheduledVisitCard(visit)
+            }
+
+            if showInlineAddVisit {
+                VStack(alignment: .leading, spacing: 12) {
+                    DatePicker("Date & Time", selection: $newVisitDate, displayedComponents: [.date, .hourAndMinute])
+                        .tint(.orange)
+
+                    TextField("Notes", text: $newVisitNotes, axis: .vertical)
+                        .lineLimit(2...4)
+                        .tint(.orange)
+
+                    HStack {
+                        Button("Cancel") {
+                            withAnimation(.easeInOut) {
+                                showInlineAddVisit = false
+                                resetVisitForm()
+                            }
+                        }
+                        Spacer()
+                        Button("Save") {
+                            saveNewVisit()
+                            withAnimation(.easeInOut) {
+                                showInlineAddVisit = false
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                    }
+                }
+                .padding(12)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
     }
@@ -312,19 +372,6 @@ struct WorkerDetailView: View {
 
                 Spacer()
 
-                if visit.isDone {
-                    Text("Done")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.orange)
-                        .clipShape(Capsule())
-                } else {
-                    Toggle("", isOn: .constant(false))
-                        .labelsHidden()
-                }
             }
 
             if !visit.notes.isEmpty {
@@ -354,6 +401,20 @@ struct WorkerDetailView: View {
         .padding(16)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            HStack {
+                Spacer()
+                Button(role: .destructive) {
+                    model.removeScheduledVisit(workerId, visitId: visit.id)
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                }
+            }
+            .padding(.trailing, 8)
+            .padding(.top, 8),
+            alignment: .topTrailing
+        )
     }
 
     private func checklistRow(_ item: ChecklistItem) -> some View {
@@ -419,7 +480,7 @@ struct WorkerDetailView: View {
                 .padding()
                 .background(Color.red.opacity(0.15))
                 .foregroundStyle(.red)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
@@ -446,6 +507,37 @@ struct WorkerDetailView: View {
         let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
         let pattern = #"^[+0-9()\-\s]{7,}$"#
         return NSPredicate(format: "SELF MATCHES %@", pattern).evaluate(with: trimmed)
+    }
+
+    private func contactAction(_ type: ContactActionType) {
+        switch type {
+        case .call:
+            let success = ContactActionHandler.makeCall(to: worker.phone)
+            if success {
+                model.recordWorkerContact(workerId, contactType: type.rawValue)
+            } else {
+                contactError = "Unable to place call."
+            }
+        case .email:
+            guard let email = worker.email else { return }
+            let success = ContactActionHandler.sendEmail(to: email)
+            if success {
+                model.recordWorkerContact(workerId, contactType: type.rawValue)
+            } else {
+                contactError = "Unable to open mail."
+            }
+        }
+    }
+
+    private func saveNewVisit() {
+        let visit = ScheduledVisit(date: newVisitDate, notes: newVisitNotes)
+        model.addScheduledVisit(to: workerId, visit: visit)
+        resetVisitForm()
+    }
+
+    private func resetVisitForm() {
+        newVisitNotes = ""
+        newVisitDate = Date().addingTimeInterval(3600)
     }
 }
 

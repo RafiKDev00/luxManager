@@ -672,6 +672,7 @@ class LuxHomeModel {
             if let firstVisit = workers[index].scheduledVisits.sorted(by: { $0.date < $1.date }).first {
                 workers[index].nextVisit = firstVisit.date
             }
+            workers[index].isScheduled = true
         }
     }
 
@@ -679,6 +680,7 @@ class LuxHomeModel {
         if let workerIndex = workers.firstIndex(where: { $0.id == workerId }),
            let visitIndex = workers[workerIndex].scheduledVisits.firstIndex(where: { $0.id == visitId }) {
             workers[workerIndex].scheduledVisits[visitIndex].isDone.toggle()
+            recalcNextVisit(for: workerId)
         }
     }
 
@@ -691,6 +693,34 @@ class LuxHomeModel {
             workers[index].specialization = specialization
             workers[index].serviceTypes = serviceTypes
             logHistory(action: .edited, itemType: .worker, itemName: name)
+        }
+    }
+
+    func recordWorkerContact(_ workerId: UUID, contactType: String) {
+        if let worker = workers.first(where: { $0.id == workerId }) {
+            logHistory(action: .contacted, itemType: .worker, itemName: "\(worker.name) (\(contactType))")
+        }
+    }
+
+    func removeScheduledVisit(_ workerId: UUID, visitId: UUID) {
+        if let index = workers.firstIndex(where: { $0.id == workerId }) {
+            workers[index].scheduledVisits.removeAll { $0.id == visitId }
+            recalcNextVisit(for: workerId)
+        }
+    }
+
+    private func recalcNextVisit(for workerId: UUID) {
+        if let index = workers.firstIndex(where: { $0.id == workerId }) {
+            let upcoming = workers[index].scheduledVisits.sorted(by: { $0.date < $1.date })
+            workers[index].nextVisit = upcoming.first?.date
+            workers[index].isScheduled = !upcoming.isEmpty
+        }
+    }
+
+    func updateWorkerSchedule(_ workerId: UUID, scheduleType: ScheduleType, isScheduled: Bool = true) {
+        if let index = workers.firstIndex(where: { $0.id == workerId }) {
+            workers[index].scheduleType = scheduleType
+            workers[index].isScheduled = isScheduled
         }
     }
 
