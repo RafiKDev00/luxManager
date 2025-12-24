@@ -67,6 +67,7 @@ struct WorkerDetailView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(worker.name)
         .navigationBarTitleDisplayMode(.large)

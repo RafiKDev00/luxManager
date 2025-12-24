@@ -13,13 +13,15 @@ struct ProjectDetailView: View {
     @Environment(LuxHomeModel.self) private var model
 
     let projectId: UUID
-
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingProgressLogEntry = false
     @State private var showingDeleteAlert = false
     @State private var showingAddWorker = false
     @State private var assignments: [ProjectWorkerAssignment] = []
     @State private var pendingRemoveAssignment: UUID?
+    @State private var isEditingNextStep = false
+    @State private var draftNextStep: String = ""
+    @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
         model.projects.first(where: { $0.id == projectId }) ?? LuxProject(
@@ -43,6 +45,7 @@ struct ProjectDetailView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(project.name)
         .navigationBarTitleDisplayMode(.large)
@@ -170,14 +173,49 @@ struct ProjectDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Next Step")
             HStack {
-                Text(project.nextStep)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Button {
-                } label: {
-                    Image(systemName: "pencil")
-                        .foregroundStyle(.orange)
+                if isEditingNextStep {
+                    ZStack(alignment: .trailing) {
+                        TextField("Next Step", text: $draftNextStep, axis: .vertical)
+                            .lineLimit(2...4)
+                            .tint(.orange)
+                            .focused($isNextStepFocused)
+                            .onSubmit { saveNextStep() }
+                            .onChange(of: isNextStepFocused) { _, focused in
+                                if !focused {
+                                    saveNextStep()
+                                }
+                            }
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 12)
+                            .background(Color(.systemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                        if !draftNextStep.isEmpty {
+                            Button {
+                                draftNextStep = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.orange)
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .padding(.trailing, 8)
+                        }
+                    }
+                } else {
+                    Text(project.nextStep)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Button {
+                        draftNextStep = project.nextStep
+                        withAnimation(.easeInOut) {
+                            isEditingNextStep = true
+                        }
+                        isNextStepFocused = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             .padding(16)
@@ -322,6 +360,24 @@ struct ProjectDetailView: View {
             }
             selectedPhotoItem = nil
         }
+    }
+
+    private func saveNextStep() {
+        let text = draftNextStep.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        model.updateProjectNextStep(projectId, nextStep: text)
+        withAnimation(.easeInOut) {
+            isEditingNextStep = false
+        }
+        isNextStepFocused = false
+    }
+
+    private func cancelNextStepEdit() {
+        draftNextStep = project.nextStep
+        withAnimation(.easeInOut) {
+            isEditingNextStep = false
+        }
+        isNextStepFocused = false
     }
 }
 

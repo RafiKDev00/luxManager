@@ -53,6 +53,7 @@ struct WorkerCreationView: View {
                 }
             })
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var contactImportSection: some View {
