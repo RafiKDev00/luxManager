@@ -45,7 +45,7 @@ struct RootTabView: View {
 
     var body: some View {
         TabView {
-            Tab("Home", systemImage: "house") {
+            Tab("Maintenance", systemImage: "house") {
                 HomeView()
             }
             .badge(totalTaskCount)

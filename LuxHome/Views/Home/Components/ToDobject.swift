@@ -21,14 +21,12 @@ struct ToDobject: View {
                 List {
                     Section {
                         TaskRowView(tasks: orderedTasks)
-                    } header: {
-                        SectionHeaderView(title: "Tasks", color: .primary)
                     }
                 }
                 .listStyle(.plain)
                 .listSectionSpacing(0)
                 .scrollContentBackground(.hidden)
-                .padding(.top, -22)
+                .padding(.top, 16)
             }
         }
     }

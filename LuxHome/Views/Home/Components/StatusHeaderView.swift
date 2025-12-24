@@ -9,7 +9,7 @@ import SwiftUI
 
 struct StatusHeaderView: View {
     var body: some View {
-        TabHeaderView(title: "Maintnence") {
+        TabHeaderView(title: "Maintenance") {
             // TODO: Ellipse button for more
         }
 
