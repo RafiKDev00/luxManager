@@ -40,27 +40,26 @@ struct RootTabView: View {
     @Environment(LuxHomeModel.self) private var model
 
     var totalTaskCount: Int {
-        model.overdueTasks.count + model.todayTasks.count + model.weekTasks.count
+        model.incompleteTasks.count
     }
 
     var body: some View {
         TabView {
-            Tab("Home", systemImage: "house") {
+            Tab("Maintenance", systemImage:  "checklist.unchecked" ) {
                 HomeView()
             }
             .badge(totalTaskCount)
 
-            Tab("Projects", systemImage: "checklist.unchecked") {
+            Tab("Projects", systemImage:  "wrench.and.screwdriver") {
                 ProjectView()
             }
-            .badge("!")
 
             Tab("Workers", systemImage: "person.2") {
                 WorkersView()
             }
 
-            Tab("Add", systemImage: "plus.app") {
-                Text("Add View")
+            Tab("History", systemImage: "clock") {
+                HistoryView()
             }
         }
     }

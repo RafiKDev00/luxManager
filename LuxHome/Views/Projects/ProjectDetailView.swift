@@ -16,6 +16,10 @@ struct ProjectDetailView: View {
 
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingProgressLogEntry = false
+    @State private var showingDeleteAlert = false
+    @State private var showingAddWorker = false
+    @State private var assignments: [ProjectWorkerAssignment] = []
+    @State private var pendingRemoveAssignment: UUID?
 
     private var project: LuxProject {
         model.projects.first(where: { $0.id == projectId }) ?? LuxProject(
@@ -30,7 +34,9 @@ struct ProjectDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 descriptionSection
+                statusSection
                 nextStepSection
+                assignedWorkersSection
                 photoGallerySection
                 progressLogSection
             }
@@ -40,12 +46,114 @@ struct ProjectDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(project.name)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    showingDeleteAlert = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .alert("Delete Project", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                model.deleteProject(projectId)
+                dismiss()
+            }
+        } message: {
+            Text("Are you sure you want to delete this project? This action cannot be undone.")
+        }
         .onChange(of: selectedPhotoItem) { _, newItem in
             handlePhotoSelection(newItem)
         }
         .sheet(isPresented: $showingProgressLogEntry) {
             ProgressLogEntryView(projectId: projectId)
                 .environment(model)
+        }
+        .sheet(isPresented: $showingAddWorker) {
+            WorkerCreationView { newWorker in
+                addAssignment(for: newWorker.id)
+            }
+            .environment(model)
+        }
+        .onAppear {
+            assignments = project.assignedWorkers
+        }
+        .onChange(of: assignments) { _, newValue in
+            model.updateProjectAssignments(projectId, assignments: newValue)
+        }
+    }
+
+    private var assignedWorkersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("Workers")
+            if assignments.isEmpty {
+                Text("No workers assigned")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach($assignments) { $assignment in
+                    NavigationLink {
+                        WorkerDetailView(workerId: assignment.workerId)
+                            .environment(model)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(workerName(for: assignment.workerId))
+                                    .font(.headline)
+                                TextField("Role", text: $assignment.role)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                            Spacer()
+                            Button(role: .destructive) {
+                                pendingRemoveAssignment = assignment.id
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        .padding(12)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+            }
+            HStack{
+                
+                if !availableWorkers.isEmpty {
+                    Menu {
+                        ForEach(availableWorkers, id: \.id) { worker in
+                            Button(worker.name) {
+                                addAssignment(for: worker.id)
+                            }
+                        }
+                    } label: {
+                        Label("Add Existing Worker", systemImage: "person.fill.badge.plus")
+                    }
+                }
+                
+                Spacer()
+                
+                Button {
+                    showingAddWorker = true
+                } label: {
+                    Label("Add New Worker", systemImage: "plus.circle")
+                }
+            }
+        }
+        .alert("Remove Worker?", isPresented: .init(get: { pendingRemoveAssignment != nil }, set: { if !$0 { pendingRemoveAssignment = nil } })) {
+            Button("Cancel", role: .cancel) {
+                pendingRemoveAssignment = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let id = pendingRemoveAssignment {
+                    removeAssignment(id)
+                }
+                pendingRemoveAssignment = nil
+            }
+        } message: {
+            Text("This will unassign the worker from the project.")
         }
     }
 
@@ -69,9 +177,27 @@ struct ProjectDetailView: View {
                 Button {
                 } label: {
                     Image(systemName: "pencil")
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.orange)
                 }
             }
+            .padding(16)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("Status")
+            Toggle(isOn: Binding(
+                get: { project.status == "In Progress" },
+                set: { isOn in
+                    model.updateProjectStatus(projectId, status: isOn ? "In Progress" : "On Hold")
+                })
+            ) {
+                Text(project.status)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: .orange))
             .padding(16)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -100,7 +226,7 @@ struct ProjectDetailView: View {
                 .overlay(
                     Image(systemName: "plus")
                         .font(.system(size: 40))
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.orange)
                 )
         }
     }
@@ -126,7 +252,7 @@ struct ProjectDetailView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.orange)
                 }
             }
             ForEach(project.progressLog) { entry in
@@ -169,6 +295,24 @@ struct ProjectDetailView: View {
         return formatter.string(from: date)
     }
 
+    private func workerName(for workerId: UUID) -> String {
+        model.workers.first(where: { $0.id == workerId })?.name ?? "Unknown Worker"
+    }
+
+    private var availableWorkers: [LuxWorker] {
+        let assignedIds = Set(assignments.map(\.workerId))
+        return model.workers.filter { !assignedIds.contains($0.id) }
+    }
+
+    private func addAssignment(for workerId: UUID) {
+        guard !assignments.contains(where: { $0.workerId == workerId }) else { return }
+        assignments.append(ProjectWorkerAssignment(workerId: workerId))
+    }
+
+    private func removeAssignment(_ id: UUID) {
+        assignments.removeAll { $0.id == id }
+    }
+
     private func handlePhotoSelection(_ photoItem: PhotosPickerItem?) {
         guard let photoItem else { return }
 
@@ -183,7 +327,9 @@ struct ProjectDetailView: View {
 
 #Preview {
     NavigationStack {
-        ProjectDetailView(projectId: LuxHomeModel.sampleProjects[0].id)
+        let workers = LuxHomeModel.sampleWorkers
+        let projects = LuxHomeModel.sampleProjects(using: workers)
+        ProjectDetailView(projectId: projects[0].id)
             .environment(LuxHomeModel.shared)
     }
 }

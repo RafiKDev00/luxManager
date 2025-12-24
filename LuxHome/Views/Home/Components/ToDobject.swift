@@ -19,29 +19,24 @@ struct ToDobject: View {
                 StatusHeaderView()
 
                 List {
-                    if !model.overdueTasks.isEmpty {
-                        Section {
-                            TaskRowView(tasks: model.overdueTasks)
-                        } header: {
-                            SectionHeaderView(title: "Overdue", color: .primary)
-                        }
-                    }
                     Section {
-                        TaskRowView(tasks: model.todayTasks)
-                    } header: {
-                        SectionHeaderView(title: "Today", color: .primary)
-                    }
-                    if !model.weekTasks.isEmpty {
-                        Section {
-                            TaskRowView(tasks: model.weekTasks)
-                        } header: {
-                            SectionHeaderView(title: "Week", color: .primary)
-                        }
+                        TaskRowView(tasks: orderedTasks)
                     }
                 }
                 .listStyle(.plain)
+                .listSectionSpacing(0)
                 .scrollContentBackground(.hidden)
+                .padding(.top, 16)
             }
+        }
+    }
+
+    private var orderedTasks: [LuxTask] {
+        model.tasks.sorted { lhs, rhs in
+            if lhs.isCompleted != rhs.isCompleted {
+                return !lhs.isCompleted
+            }
+            return lhs.createdAt > rhs.createdAt
         }
     }
 }

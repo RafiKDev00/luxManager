@@ -12,6 +12,7 @@ import ContactsUI
 struct WorkerCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(LuxHomeModel.self) private var model
+    var onSave: ((LuxWorker) -> Void)? = nil
 
     @State private var workerName: String = ""
     @State private var company: String = ""
@@ -21,6 +22,7 @@ struct WorkerCreationView: View {
     @State private var servicesText: String = ""
     @State private var selectedScheduleType: ScheduleType = .oneTime
     @State private var showingContactPicker = false
+    @State private var validationError: String?
 
     let specializations = ["Cleaner", "Gardener", "Pool Service", "HVAC Tech", "Plumber", "Electrician", "Other"]
 
@@ -41,6 +43,15 @@ struct WorkerCreationView: View {
                     importContact(contact)
                 }
             }
+            .alert("Invalid Entry", isPresented: .constant(validationError != nil), actions: {
+                Button("OK", role: .cancel) {
+                    validationError = nil
+                }
+            }, message: {
+                if let validationError {
+                    Text(validationError)
+                }
+            })
         }
     }
 
@@ -51,7 +62,7 @@ struct WorkerCreationView: View {
             } label: {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.orange)
                     Text("Import from Contacts")
                         .foregroundStyle(.primary)
                     Spacer()
@@ -68,13 +79,17 @@ struct WorkerCreationView: View {
     private var basicInfoSection: some View {
         Section {
             TextField("Full Name", text: $workerName)
+                .tint(.orange)
                 .font(.headline)
             TextField("Company", text: $company)
+                .tint(.orange)
             TextField("Phone", text: $phone)
                 .keyboardType(.phonePad)
+                .tint(.orange)
             TextField("Email (Optional)", text: $email)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
+                .tint(.orange)
         } header: {
             Text("Basic Information")
         }
@@ -87,7 +102,7 @@ struct WorkerCreationView: View {
                     Text(spec).tag(spec)
                 }
             }
-            .tint(.pink)
+            .tint(.orange)
         } header: {
             Text("Specialization")
         }
@@ -114,7 +129,7 @@ struct WorkerCreationView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.pink)
+            .tint(.orange)
         } header: {
             Text("Schedule")
         }
@@ -161,12 +176,21 @@ struct WorkerCreationView: View {
     }
 
     private func saveWorker() {
+        guard isValidPhone(phone) else {
+            validationError = "Please enter a valid phone number."
+            return
+        }
+        if !email.isEmpty && !isValidEmail(email) {
+            validationError = "Please enter a valid email address."
+            return
+        }
+
         let services = servicesText
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
 
-        model.createWorker(
+        let worker = model.createWorker(
             name: workerName,
             company: company,
             phone: phone,
@@ -175,6 +199,7 @@ struct WorkerCreationView: View {
             serviceTypes: services,
             scheduleType: selectedScheduleType
         )
+        onSave?(worker)
         dismiss()
     }
 
@@ -194,6 +219,17 @@ struct WorkerCreationView: View {
         }
 
         showingContactPicker = false
+    }
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
+        return NSPredicate(format: "SELF MATCHES[c] %@", pattern).evaluate(with: email)
+    }
+
+    private func isValidPhone(_ phone: String) -> Bool {
+        let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pattern = #"^[+0-9()\-\s]{7,}$"#
+        return NSPredicate(format: "SELF MATCHES %@", pattern).evaluate(with: trimmed)
     }
 }
 

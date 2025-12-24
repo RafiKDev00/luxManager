@@ -44,9 +44,9 @@ struct ProgressLogEntryView: View {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                 HStack {
                     Image(systemName: hasPhoto ? "photo.fill" : "photo")
-                        .foregroundStyle(hasPhoto ? .pink : .secondary)
+                        .foregroundStyle(hasPhoto ? .orange : .secondary)
                     Text(hasPhoto ? "Photo Added" : "Add Photo (Optional)")
-                        .foregroundStyle(hasPhoto ? .pink : .primary)
+                        .foregroundStyle(hasPhoto ? .orange : .primary)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption)

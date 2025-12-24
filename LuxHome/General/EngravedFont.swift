@@ -16,20 +16,21 @@ struct EngravedFont: View {
     var body: some View {
         ZStack {
             if colorScheme == .dark {
-                shadowLayer(color: .black.opacity(0.25), x: 0, y: -1.5)
-                shadowLayer(color: .black.opacity(0.3), x: -1.5, y: 0)
-                shadowLayer(color: .black.opacity(0.3), x: 1.5, y: 0)
-                shadowLayer(color: .white.opacity(0.25), x: 0, y: 1.5)
+                shadowLayer(color: .black.opacity(0.15), x: 0, y: -1.5)
+                shadowLayer(color: .black.opacity(0.2), x: -1.5, y: 0)
+                shadowLayer(color: .black.opacity(0.2), x: 1.5, y: 0)
+                shadowLayer(color: .white.opacity(0.15), x: 0, y: 1.5)
             } else {
-                shadowLayer(color: .black.opacity(0.10), x: 0, y: -1.5)
-                shadowLayer(color: .black.opacity(0.10), x: -1.5, y: 0)
-                shadowLayer(color: .black.opacity(0.10), x: 1.5, y: 0)
-                shadowLayer(color: .white.opacity(0.9), x: 0, y: 1.5)
+                shadowLayer(color: .black.opacity(0.01), x: 0, y: -0.5)
+                shadowLayer(color: .black.opacity(0.01), x: -0.5, y: 0)
+                shadowLayer(color: .black.opacity(0.01), x: 0.5, y: 0)
+                shadowLayer(color: .white.opacity(0.9), x: 0, y: 0.5)
             }
             
             Text(text)
                 .font(font)
-                .foregroundColor(colorScheme == .dark ? Color(UIColor.secondaryLabel) : Color(UIColor.tertiaryLabel))
+                .foregroundColor(colorScheme == .dark ? Color(UIColor.secondaryLabel) : Color(UIColor.white).opacity(0.01))
+                //to change background color
         }
     }
     

@@ -17,9 +17,11 @@ struct ProjectRowView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(project.name)
                             .font(.headline)
-                        Text(formattedDate(project.dueDate))
+                        Text(truncatedNextStep(project.nextStep))
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
                     Spacer()
                     statusBadge(for: project)
@@ -52,18 +54,18 @@ struct ProjectRowView: View {
         case "In Progress":
             return .blue
         case "Completed":
-            return .pink
+            return .orange
         case "On Hold":
             return .orange
         default:
             return .gray
         }
     }
-
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return "Due: \(formatter.string(from: date))"
+    
+    private func truncatedNextStep(_ nextStep: String) -> String {
+        let words = nextStep.split(separator: " ")
+        let firstFiveWords = words.prefix(5).joined(separator: " ")
+        return words.count > 5 ? "\(firstFiveWords)..." : firstFiveWords
     }
 
     private func rowShape(for index: Int) -> UnevenRoundedRectangle {

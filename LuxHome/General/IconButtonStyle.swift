@@ -49,7 +49,9 @@ struct IconButtonStyle: ButtonStyle {
         switch type {
         case .close, .check:
             return 48
-        case .clearText, .back, .ellipsis:
+        case .clearText, .back:
+            return 48
+        case .ellipsis:
             return 48
         case .plus:
             return 48
@@ -81,9 +83,9 @@ struct IconButtonStyle: ButtonStyle {
         case .close, .clearText, .back, .ellipsis:
             return .regular.interactive()
         case .plus:
-            return .regular.tint(Color.pink).interactive()
+            return .regular.tint(Color.orange).interactive()
         case .check:
-            return .regular.tint(Color.pink).interactive()
+            return .regular.tint(Color.orange).interactive()
         }
     }
 }
