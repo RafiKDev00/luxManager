@@ -47,9 +47,7 @@ struct WorkerDetailView: View {
                         serviceTags: $draftServicesList,
                         newServiceEntry: $newServiceEntry,
                         schedule: $draftSchedule
-                    ) {
-                        showingDeleteAlert = true
-                    }
+                    )
                 } else {
                     workerInfoSection
                     servicesSection
@@ -57,6 +55,9 @@ struct WorkerDetailView: View {
                 }
                 scheduledVisitsSection
                 projectsSection
+                if isEditing {
+                    deleteButton
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
@@ -181,7 +182,7 @@ struct WorkerDetailView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(Color.blue)
+            .background(Color.orange)
             .clipShape(Capsule())
         }
     }
@@ -227,7 +228,7 @@ struct WorkerDetailView: View {
             } else {
                 HStack {
                     Image(systemName: "calendar")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.orange)
                     Text(worker.scheduleType.rawValue)
                         .font(.body)
                 }
@@ -248,7 +249,7 @@ struct WorkerDetailView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.orange)
                 }
             }
 
@@ -303,8 +304,8 @@ struct WorkerDetailView: View {
     private func scheduledVisitCard(_ visit: ScheduledVisit) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "calendar")
-                    .foregroundStyle(.blue)
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.orange)
                 Text(formattedDateTime(visit.date))
                     .font(.subheadline)
                     .fontWeight(.semibold)

@@ -17,15 +17,11 @@ struct WorkerEditForm: View {
     @Binding var newServiceEntry: String
     @Binding var schedule: ScheduleType
 
-    var onDelete: () -> Void
-
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             contactSection
             servicesSection
             scheduleSection
-            Spacer(minLength: 16)
-            deleteButton
         }
     }
 
@@ -36,11 +32,17 @@ struct WorkerEditForm: View {
                 .fontWeight(.bold)
                 .foregroundStyle(.primary)
 
-            clearableField("Name", text: $name)
-            clearableField("Company", text: $company)
-            clearableField("Phone", text: $phone, keyboard: .phonePad)
-            clearableField("Email", text: $email, keyboard: .emailAddress)
-            clearableField("Specialization", text: $specialization, autocap: .words)
+            groupedFieldStack {
+                clearableField("Name", text: $name)
+                Divider().padding(.leading, 12)
+                clearableField("Company", text: $company)
+                Divider().padding(.leading, 12)
+                clearableField("Phone", text: $phone, keyboard: .phonePad)
+                Divider().padding(.leading, 12)
+                clearableField("Email", text: $email, keyboard: .emailAddress)
+                Divider().padding(.leading, 12)
+                clearableField("Specialization", text: $specialization, autocap: .words)
+            }
         }
     }
 
@@ -72,19 +74,22 @@ struct WorkerEditForm: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                clearableField("Add service", text: $newServiceEntry)
-                Button {
-                    addService()
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .padding(10)
-                        .background(Color.orange)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            groupedFieldStack {
+                HStack {
+                    clearableField("Add service", text: $newServiceEntry)
+                    Button {
+                        addService()
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .padding(12)
+                            .background(Color.orange)
+                            .foregroundStyle(.white)
+                            .clipShape(Circle())
+                    }
+                    .disabled(newServiceEntry.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .disabled(newServiceEntry.trimmingCharacters(in: .whitespaces).isEmpty)
+                .padding(.horizontal, 4)
             }
         }
     }
@@ -106,20 +111,6 @@ struct WorkerEditForm: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-    }
-
-    private var deleteButton: some View {
-        Button(role: .destructive) {
-            onDelete()
-        } label: {
-            Text("Delete Contact")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.red.opacity(0.15))
-                .foregroundStyle(.red)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 
@@ -145,7 +136,8 @@ struct WorkerEditForm: View {
             TextField(title, text: text)
                 .textInputAutocapitalization(autocap)
                 .keyboardType(keyboard)
-                .padding(.vertical, 10)
+                .tint(.orange)
+                .padding(.vertical, 12)
                 .padding(.leading, 12)
                 .padding(.trailing, 4)
             if !text.wrappedValue.isEmpty {
@@ -160,8 +152,20 @@ struct WorkerEditForm: View {
                 .buttonStyle(.plain)
             }
         }
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func groupedFieldStack<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(spacing: 0, content: content)
+            .padding(.horizontal, 2)
+            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color(.separator), lineWidth: 0.5)
+            )
     }
 }
 
@@ -174,8 +178,7 @@ struct WorkerEditForm: View {
         specialization: .constant("Gardener"),
         serviceTags: .constant(["Gardener", "Landscaping"]),
         newServiceEntry: .constant(""),
-        schedule: .constant(.weekly),
-        onDelete: {}
+        schedule: .constant(.weekly)
     )
     .padding()
     .background(Color(.systemGroupedBackground))

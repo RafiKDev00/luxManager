@@ -62,7 +62,7 @@ struct WorkerCreationView: View {
             } label: {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.orange)
                     Text("Import from Contacts")
                         .foregroundStyle(.primary)
                     Spacer()
@@ -79,13 +79,17 @@ struct WorkerCreationView: View {
     private var basicInfoSection: some View {
         Section {
             TextField("Full Name", text: $workerName)
+                .tint(.orange)
                 .font(.headline)
             TextField("Company", text: $company)
+                .tint(.orange)
             TextField("Phone", text: $phone)
                 .keyboardType(.phonePad)
+                .tint(.orange)
             TextField("Email (Optional)", text: $email)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
+                .tint(.orange)
         } header: {
             Text("Basic Information")
         }
