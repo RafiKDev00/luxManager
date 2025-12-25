@@ -631,6 +631,9 @@ class LuxHomeModel {
                 photoURL: photoURL
             )
             projects[index].progressLog.insert(entry, at: 0)
+            if let photoURL = photoURL, !projects[index].photoURLs.contains(photoURL) {
+                projects[index].photoURLs.append(photoURL)
+            }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
         }
     }

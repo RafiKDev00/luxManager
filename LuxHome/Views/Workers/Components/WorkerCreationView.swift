@@ -23,6 +23,7 @@ struct WorkerCreationView: View {
     @State private var selectedScheduleType: ScheduleType = .oneTime
     @State private var showingContactPicker = false
     @State private var validationError: String?
+    @State private var contactAccessError: String?
 
     let specializations = ["Cleaner", "Gardener", "Pool Service", "HVAC Tech", "Plumber", "Electrician", "Other"]
 
@@ -54,12 +55,21 @@ struct WorkerCreationView: View {
             })
         }
         .scrollDismissesKeyboard(.interactively)
+        .alert("Contacts Access", isPresented: .constant(contactAccessError != nil), actions: {
+            Button("OK", role: .cancel) {
+                contactAccessError = nil
+            }
+        }, message: {
+            if let contactAccessError {
+                Text(contactAccessError)
+            }
+        })
     }
 
     private var contactImportSection: some View {
         Section {
             Button {
-                showingContactPicker = true
+                requestContactsAccess()
             } label: {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")
@@ -171,8 +181,8 @@ struct WorkerCreationView: View {
             Image(systemName: "checkmark")
         }
         .buttonStyle(IconButtonStyle(type: .check))
-        .disabled(workerName.isEmpty || company.isEmpty || phone.isEmpty)
-        .opacity(workerName.isEmpty || company.isEmpty || phone.isEmpty ? 0.8 : 1.0)
+        .disabled(workerName.isEmpty || phone.isEmpty)
+        .opacity(workerName.isEmpty || phone.isEmpty ? 0.8 : 1.0)
         .padding(.trailing, 16)
     }
 
@@ -193,7 +203,7 @@ struct WorkerCreationView: View {
 
         let worker = model.createWorker(
             name: workerName,
-            company: company,
+            company: company.isEmpty ? " " : company,
             phone: phone,
             email: email.isEmpty ? nil : email,
             specialization: selectedSpecialization,
@@ -205,6 +215,7 @@ struct WorkerCreationView: View {
     }
 
     private func importContact(_ contact: CNContact) {
+        print("[WorkerCreation] Importing contact: \(contact.givenName) \(contact.familyName)")
         workerName = "\(contact.givenName) \(contact.familyName)".trimmingCharacters(in: .whitespaces)
 
         if let organization = contact.organizationName.isEmpty ? nil : contact.organizationName {
@@ -231,6 +242,26 @@ struct WorkerCreationView: View {
         let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
         let pattern = #"^[+0-9()\-\s]{7,}$"#
         return NSPredicate(format: "SELF MATCHES %@", pattern).evaluate(with: trimmed)
+    }
+
+    private func requestContactsAccess() {
+        let status = CNContactStore.authorizationStatus(for: .contacts)
+        switch status {
+        case .authorized:
+            showingContactPicker = true
+        case .notDetermined:
+            CNContactStore().requestAccess(for: .contacts) { granted, _ in
+                DispatchQueue.main.async {
+                    if granted {
+                        showingContactPicker = true
+                    } else {
+                        contactAccessError = "Please enable Contacts access in Settings to import."
+                    }
+                }
+            }
+        default:
+            contactAccessError = "Please enable Contacts access in Settings to import."
+        }
     }
 }
 
