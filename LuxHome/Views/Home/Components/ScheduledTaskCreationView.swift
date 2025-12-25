@@ -92,6 +92,9 @@ struct ScheduledTaskCreationView: View {
     }
 
     private func addSubtask() {
+        guard subtasks.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            return
+        }
         subtasks.append(SubtaskItem(name: ""))
     }
 

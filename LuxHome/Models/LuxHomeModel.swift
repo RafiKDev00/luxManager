@@ -148,7 +148,7 @@ class LuxHomeModel {
                 description: "A comprehensive renovation of the backyard garden, including new landscaping, irrigation system, and a custom-built patio.",
                 dueDate: Calendar.current.date(byAdding: .month, value: 2, to: Date())!,
                 nextStep: "Approve final plant selections and confirm irrigation system layout.",
-                photoURLs: ["photo1", "photo2", "photo3"],
+                photoURLs: [],
                 progressLog: [
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -8, to: Date())!,
@@ -157,7 +157,7 @@ class LuxHomeModel {
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -6, to: Date())!,
                         text: "Demolition of old patio and removal of existing shrubbery. Area cleared for new construction.",
-                        photoURL: "demolition_photo"
+                        photoURL: nil
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -3, to: Date())!,
@@ -166,7 +166,7 @@ class LuxHomeModel {
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
                         text: "Irrigation lines installed in designated areas. Initial selection of drought-resistant plants received for review.",
-                        photoURL: "irrigation_photo"
+                        photoURL: nil
                     )
                 ]
             ),
@@ -179,7 +179,7 @@ class LuxHomeModel {
                 description: "Complete kitchen overhaul including new cabinets, countertops, appliances, and updated electrical work.",
                 dueDate: Calendar.current.date(byAdding: .month, value: 1, to: Date())!,
                 nextStep: "Install new countertops and backsplash.",
-                photoURLs: ["kitchen1", "kitchen2"],
+                photoURLs: [],
                 progressLog: [
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -5, to: Date())!,
@@ -188,7 +188,7 @@ class LuxHomeModel {
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -2, to: Date())!,
                         text: "New cabinets installed and leveled.",
-                        photoURL: "cabinets_photo"
+                        photoURL: nil
                     )
                 ]
             ),
@@ -533,6 +533,25 @@ class LuxHomeModel {
         updateTaskSubtaskCounts(subtask.taskId)
     }
 
+    func createSubtask(taskId: UUID, name: String) {
+        let subtask = LuxSubTask(
+            id: UUID(),
+            name: name,
+            isCompleted: false,
+            taskId: taskId,
+            photoURL: nil
+        )
+        addSubtask(subtask)
+        logHistory(action: .created, itemType: .subtask, itemName: name)
+    }
+
+    func updateSubtaskName(_ subtaskId: UUID, name: String) {
+        if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
+            subtasks[index].name = name
+            logHistory(action: .edited, itemType: .subtask, itemName: name)
+        }
+    }
+
     func toggleSubtaskCompletion(_ subtaskId: UUID) {
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
             subtasks[index].isCompleted.toggle()
@@ -612,6 +631,10 @@ class LuxHomeModel {
                 photoURL: photoURL
             )
             projects[index].progressLog.insert(entry, at: 0)
+            if let photoURL = photoURL, !projects[index].photoURLs.contains(photoURL) {
+                projects[index].photoURLs.append(photoURL)
+            }
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
         }
     }
 

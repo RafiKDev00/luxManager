@@ -52,7 +52,9 @@ struct ProgressLogEntryView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         } header: {
             Text("Attach Photo")
         }
@@ -106,7 +108,10 @@ struct ProgressLogEntryView: View {
             var photoURL: String? = nil
             if let photoItem = selectedPhotoItem,
                let data = try? await photoItem.loadTransferable(type: Data.self) {
-                photoURL = "placeholder://photo"
+                let filename = "\(UUID().uuidString).jpg"
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                try? data.write(to: tempURL)
+                photoURL = tempURL.absoluteString
             }
 
             model.addProgressLogEntry(

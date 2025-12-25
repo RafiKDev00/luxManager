@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EFAA232D2EFC08D7002DCB25 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = EFAA232C2EFC08D7002DCB25 /* Kingfisher */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		EFCAA9DF2EF3E9B90041DA3E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EFAA232D2EFC08D7002DCB25 /* Kingfisher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +77,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		EFAA232B2EFC08D7002DCB25 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		EFCAA9C32EF3E9B80041DA3E = {
 			isa = PBXGroup;
 			children = (
 				EFCAA9CE2EF3E9B80041DA3E /* LuxHome */,
 				EFCAA9E12EF3E9B90041DA3E /* LuxHomeTests */,
 				EFCAA9EB2EF3E9B90041DA3E /* LuxHomeUITests */,
+				EFAA232B2EFC08D7002DCB25 /* Frameworks */,
 				EFCAA9CD2EF3E9B80041DA3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +125,7 @@
 			);
 			name = LuxHome;
 			packageProductDependencies = (
+				EFAA232C2EFC08D7002DCB25 /* Kingfisher */,
 			);
 			productName = LuxHome;
 			productReference = EFCAA9CC2EF3E9B80041DA3E /* LuxHome.app */;
@@ -195,6 +209,9 @@
 			);
 			mainGroup = EFCAA9C32EF3E9B80041DA3E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EFAA232A2EFC07D4002DCB25 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EFCAA9CD2EF3E9B80041DA3E /* Products */;
 			projectDirPath = "";
@@ -401,6 +418,7 @@
 				DEVELOPMENT_TEAM = QUYTB5LSQF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -433,6 +451,7 @@
 				DEVELOPMENT_TEAM = QUYTB5LSQF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -578,6 +597,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EFAA232A2EFC07D4002DCB25 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.6.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EFAA232C2EFC08D7002DCB25 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EFAA232A2EFC07D4002DCB25 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EFCAA9C42EF3E9B80041DA3E /* Project object */;
 }

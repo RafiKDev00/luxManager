@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 import PhotosUI
 
 struct ProjectDetailView: View {
@@ -13,13 +14,15 @@ struct ProjectDetailView: View {
     @Environment(LuxHomeModel.self) private var model
 
     let projectId: UUID
-
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingProgressLogEntry = false
     @State private var showingDeleteAlert = false
     @State private var showingAddWorker = false
     @State private var assignments: [ProjectWorkerAssignment] = []
     @State private var pendingRemoveAssignment: UUID?
+    @State private var isEditingNextStep = false
+    @State private var draftNextStep: String = ""
+    @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
         model.projects.first(where: { $0.id == projectId }) ?? LuxProject(
@@ -43,6 +46,7 @@ struct ProjectDetailView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(project.name)
         .navigationBarTitleDisplayMode(.large)
@@ -170,14 +174,43 @@ struct ProjectDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Next Step")
             HStack {
-                Text(project.nextStep)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Button {
-                } label: {
-                    Image(systemName: "pencil")
-                        .foregroundStyle(.orange)
+                if isEditingNextStep {
+                    TextField("Next Step", text: $draftNextStep, axis: .vertical)
+                        .lineLimit(2...4)
+                        .tint(.orange)
+                        .focused($isNextStepFocused)
+                        .onSubmit { saveNextStep() }
+                        .padding(.vertical, 10)
+                        .padding(.leading, 12)
+                        .padding(.trailing, 12)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    Spacer()
+
+                    Button {
+                        saveNextStep()
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.white, .blue)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(project.nextStep)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Button {
+                        draftNextStep = project.nextStep
+                        withAnimation(.easeInOut) {
+                            isEditingNextStep = true
+                        }
+                        isNextStepFocused = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             .padding(16)
@@ -210,9 +243,7 @@ struct ProjectDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     addPhotoButton
-                    ForEach(project.photoURLs, id: \.self) { photoURL in
-                        photoThumbnail
-                    }
+                    photoThumbnail
                 }
             }
         }
@@ -220,26 +251,32 @@ struct ProjectDetailView: View {
 
     private var addPhotoButton: some View {
         PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(width: 140, height: 100)
-                .overlay(
-                    Image(systemName: "plus")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.orange)
-                )
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.tertiarySystemGroupedBackground))
+
+                Image(systemName: "plus")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.orange)
+            }
+            .frame(width: 140, height: 100)
         }
+        .buttonStyle(.borderless)
     }
 
     private var photoThumbnail: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(.tertiarySystemGroupedBackground))
-            .frame(width: 140, height: 100)
-            .overlay(
-                Image(systemName: "photo")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.secondary)
-            )
+        ForEach(project.photoURLs, id: \.self) { urlString in
+            if let url = URL(string: urlString) {
+                KFImage(url)
+                    .placeholder { placeholderPhoto }
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 140, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                placeholderPhoto
+            }
+        }
     }
 
     private var progressLogSection: some View {
@@ -271,8 +308,8 @@ struct ProjectDetailView: View {
                 .font(.body)
                 .foregroundStyle(.primary)
 
-            if entry.photoURL != nil {
-                photoThumbnail
+            if let urlString = entry.photoURL {
+                entryPhotoView(urlString: urlString)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -318,10 +355,56 @@ struct ProjectDetailView: View {
 
         Task {
             if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                model.addPhotoToProject(projectId, photoURL: "placeholder://photo")
+                let filename = "\(UUID().uuidString).jpg"
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                try? data.write(to: tempURL)
+                model.addPhotoToProject(projectId, photoURL: tempURL.absoluteString)
             }
             selectedPhotoItem = nil
         }
+    }
+
+    @ViewBuilder
+    private func entryPhotoView(urlString: String) -> some View {
+        if let url = URL(string: urlString) {
+            KFImage(url)
+                .placeholder { placeholderPhoto }
+                .resizable()
+                .scaledToFill()
+                .frame(width: 140, height: 100)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        } else {
+            placeholderPhoto
+        }
+    }
+
+    private var placeholderPhoto: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color(.tertiarySystemGroupedBackground))
+            .frame(width: 140, height: 100)
+            .overlay(
+                Image(systemName: "photo")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.secondary)
+            )
+    }
+
+    private func saveNextStep() {
+        let text = draftNextStep.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        model.updateProjectNextStep(projectId, nextStep: text)
+        withAnimation(.easeInOut) {
+            isEditingNextStep = false
+        }
+        isNextStepFocused = false
+    }
+
+    private func cancelNextStepEdit() {
+        draftNextStep = project.nextStep
+        withAnimation(.easeInOut) {
+            isEditingNextStep = false
+        }
+        isNextStepFocused = false
     }
 }
 
