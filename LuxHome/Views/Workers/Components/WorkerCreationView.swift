@@ -161,6 +161,7 @@ struct WorkerCreationView: View {
 
     private var closeButton: some View {
         Button {
+            print("[WorkerCreation] Close button tapped")
             dismiss()
         } label: {
             Image(systemName: "xmark")
