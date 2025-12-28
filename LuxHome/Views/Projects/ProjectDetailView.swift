@@ -31,6 +31,8 @@ struct ProjectDetailView: View {
     @State private var pendingLogToDelete: UUID?
     @State private var editingLogId: UUID?
     @State private var draftLogText: String = ""
+    @State private var addingPhotoToLogId: UUID?
+    @State private var selectedLogPhotoItem: PhotosPickerItem?
     @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
@@ -446,8 +448,8 @@ struct ProjectDetailView: View {
                 }
             }
 
-            if let urlString = entry.photoURL {
-                entryPhotoView(urlString: urlString)
+            if !entry.photoURLs.isEmpty {
+                entryPhotosView(entry: entry)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -499,6 +501,51 @@ struct ProjectDetailView: View {
                 model.addPhotoToProject(projectId, photoURL: tempURL.absoluteString)
             }
             selectedPhotoItem = nil
+        }
+    }
+
+    @ViewBuilder
+    private func entryPhotosView(entry: ProgressLogEntry) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(entry.photoURLs, id: \.self) { urlString in
+                        if let url = URL(string: urlString) {
+                            KFImage(url)
+                                .placeholder {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color(.tertiarySystemGroupedBackground))
+                                        .overlay(
+                                            Image(systemName: "photo")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(.gray)
+                                        )
+                                }
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 100, height: 100)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+
+                    if editingLogId == entry.id {
+                        PhotosPicker(selection: $selectedLogPhotoItem, matching: .images) {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(.tertiarySystemGroupedBackground))
+                                .frame(width: 100, height: 100)
+                                .overlay(
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 30))
+                                        .foregroundStyle(.orange)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .onChange(of: selectedLogPhotoItem) { _, newItem in
+                            handleLogPhotoSelection(newItem, for: entry.id)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -606,6 +653,23 @@ struct ProjectDetailView: View {
             isEditingNextStep = false
         }
         isNextStepFocused = false
+    }
+
+    private func handleLogPhotoSelection(_ photoItem: PhotosPickerItem?, for entryId: UUID) {
+        guard let photoItem else { return }
+
+        Task {
+            if let data = try? await photoItem.loadTransferable(type: Data.self) {
+                let filename = "\(UUID().uuidString).jpg"
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                try? data.write(to: tempURL)
+
+                await MainActor.run {
+                    model.addPhotoToProgressLogEntry(to: projectId, entryId: entryId, photoURL: tempURL.absoluteString)
+                    selectedLogPhotoItem = nil
+                }
+            }
+        }
     }
 }
 

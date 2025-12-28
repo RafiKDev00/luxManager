@@ -156,8 +156,7 @@ class LuxHomeModel {
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -6, to: Date())!,
-                        text: "Demolition of old patio and removal of existing shrubbery. Area cleared for new construction.",
-                        photoURL: nil
+                        text: "Demolition of old patio and removal of existing shrubbery. Area cleared for new construction."
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -3, to: Date())!,
@@ -165,8 +164,7 @@ class LuxHomeModel {
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
-                        text: "Irrigation lines installed in designated areas. Initial selection of drought-resistant plants received for review.",
-                        photoURL: nil
+                        text: "Irrigation lines installed in designated areas. Initial selection of drought-resistant plants received for review."
                     )
                 ]
             ),
@@ -187,8 +185,7 @@ class LuxHomeModel {
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -2, to: Date())!,
-                        text: "New cabinets installed and leveled.",
-                        photoURL: nil
+                        text: "New cabinets installed and leveled."
                     )
                 ]
             ),
@@ -585,10 +582,6 @@ class LuxHomeModel {
             print("[Model] Found subtask at index \(index), current photo count: \(subtasks[index].photoURLs.count)")
             subtasks[index].photoURLs.append(photoURL)
             print("[Model] Photo added, new count: \(subtasks[index].photoURLs.count)")
-            if !subtasks[index].isCompleted {
-                subtasks[index].isCompleted = true
-                updateTaskSubtaskCounts(subtasks[index].taskId)
-            }
             logHistory(action: .photoAdded, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
         } else {
             print("[Model] ERROR: Subtask not found with id: \(subtaskId)")
@@ -643,18 +636,32 @@ class LuxHomeModel {
         }
     }
 
-    func addProgressLogEntry(to projectId: UUID, text: String, photoURL: String?) {
+    func addProgressLogEntry(to projectId: UUID, text: String, photoURLs: [String]) {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             let entry = ProgressLogEntry(
                 date: Date(),
                 text: text,
-                photoURL: photoURL
+                photoURLs: photoURLs
             )
             projects[index].progressLog.insert(entry, at: 0)
-            if let photoURL = photoURL, !projects[index].photoURLs.contains(photoURL) {
-                projects[index].photoURLs.append(photoURL)
+            for photoURL in photoURLs {
+                if !projects[index].photoURLs.contains(photoURL) {
+                    projects[index].photoURLs.append(photoURL)
+                }
             }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func addPhotoToProgressLogEntry(to projectId: UUID, entryId: UUID, photoURL: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            if let logIndex = projects[index].progressLog.firstIndex(where: { $0.id == entryId }) {
+                projects[index].progressLog[logIndex].photoURLs.append(photoURL)
+                if !projects[index].photoURLs.contains(photoURL) {
+                    projects[index].photoURLs.append(photoURL)
+                }
+                logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+            }
         }
     }
 

@@ -57,17 +57,17 @@ struct ProgressLogEntry: Identifiable, Codable {
     let id: UUID
     var date: Date
     var text: String
-    var photoURL: String?
+    var photoURLs: [String]
 
     init(
         id: UUID = UUID(),
         date: Date,
         text: String,
-        photoURL: String? = nil
+        photoURLs: [String] = []
     ) {
         self.id = id
         self.date = date
         self.text = text
-        self.photoURL = photoURL
+        self.photoURLs = photoURLs
     }
 }
