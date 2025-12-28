@@ -19,25 +19,101 @@ struct ToDobject: View {
                 StatusHeaderView()
 
                 List {
-                    Section {
-                        TaskRowView(tasks: orderedTasks)
+                    ForEach(groupedTasks.keys.sorted(by: sortSections), id: \.self) { key in
+                        Section {
+                            TaskRowView(tasks: sortedTasksInGroup(groupedTasks[key] ?? []))
+                        } header: {
+                            sectionHeader(for: key, tasks: groupedTasks[key] ?? [])
+                        }
                     }
                 }
                 .listStyle(.plain)
-                .listSectionSpacing(0)
+                .listSectionSpacing(16)
                 .scrollContentBackground(.hidden)
                 .padding(.top, 16)
             }
         }
     }
 
-    private var orderedTasks: [LuxTask] {
-        model.tasks.sorted { lhs, rhs in
+    private var groupedTasks: [String: [LuxTask]] {
+        Dictionary(grouping: model.tasks) { task in
+            task.recurringDescription
+        }
+    }
+
+    private func sortedTasksInGroup(_ tasks: [LuxTask]) -> [LuxTask] {
+        tasks.sorted { lhs, rhs in
+            // Completed tasks go to the bottom
             if lhs.isCompleted != rhs.isCompleted {
                 return !lhs.isCompleted
             }
-            return lhs.createdAt > rhs.createdAt
+
+            // Sort by next due date
+            guard let lhsDate = lhs.nextDueDate, let rhsDate = rhs.nextDueDate else {
+                return false
+            }
+            return lhsDate < rhsDate
         }
+    }
+
+    private func sectionHeader(for key: String, tasks: [LuxTask]) -> some View {
+        let incompleteTasks = tasks.filter { !$0.isCompleted }
+        let nextDue = incompleteTasks.compactMap { $0.nextDueDate }.min()
+
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(key)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(.primary)
+                .textCase(nil)
+
+            if let nextDue = nextDue {
+                let description = incompleteTasks
+                    .first(where: { $0.nextDueDate == nextDue })?
+                    .dueDateDescription() ?? ""
+
+                Text("(Next: \(description))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .textCase(nil)
+            }
+
+            Spacer()
+        }
+    }
+
+    private func sortSections(_ lhs: String, _ rhs: String) -> Bool {
+        // Sort order: One-time tasks first, then by interval frequency
+        if lhs == "One-time" { return true }
+        if rhs == "One-time" { return false }
+
+        // Extract intervals for comparison
+        let lhsInterval = extractInterval(from: lhs)
+        let rhsInterval = extractInterval(from: rhs)
+
+        return lhsInterval < rhsInterval
+    }
+
+    private func extractInterval(from description: String) -> Int {
+        // Convert to comparable number (weeks in total)
+        if description.contains("Week") {
+            if description.hasPrefix("Every ") {
+                let components = description.components(separatedBy: " ")
+                if components.count >= 2, let num = Int(components[1]) {
+                    return num
+                }
+                return 1 // "Every Week"
+            }
+        } else if description.contains("Month") {
+            if description.hasPrefix("Every ") {
+                let components = description.components(separatedBy: " ")
+                if components.count >= 2, let num = Int(components[1]) {
+                    return num * 4 // Convert months to weeks for comparison
+                }
+                return 4 // "Every Month" = 4 weeks
+            }
+        }
+        return 999 // Unknown, put at end
     }
 }
 

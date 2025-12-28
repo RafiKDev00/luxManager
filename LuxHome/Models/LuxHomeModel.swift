@@ -31,6 +31,36 @@ class LuxHomeModel {
         tasks.filter { !$0.isCompleted }
     }
 
+    // MARK: - Dashboard Data
+    var tasksThisWeek: [LuxTask] {
+        let calendar = Calendar.current
+        let now = Date()
+        let endOfWeek = calendar.date(byAdding: .day, value: 7, to: now) ?? now
+
+        return tasks.filter { task in
+            guard let dueDate = task.nextDueDate else { return false }
+            return dueDate >= now && dueDate <= endOfWeek
+        }.sorted { ($0.nextDueDate ?? Date.distantFuture) < ($1.nextDueDate ?? Date.distantFuture) }
+    }
+
+    var workersThisWeek: [(worker: LuxWorker, nextVisit: Date)] {
+        let calendar = Calendar.current
+        let now = Date()
+        let endOfWeek = calendar.date(byAdding: .day, value: 7, to: now) ?? now
+
+        return workers.compactMap { worker in
+            guard let nextVisit = worker.nextVisit,
+                  nextVisit >= now && nextVisit <= endOfWeek else {
+                return nil
+            }
+            return (worker: worker, nextVisit: nextVisit)
+        }.sorted { $0.nextVisit < $1.nextVisit }
+    }
+
+    var projectNextSteps: [LuxProject] {
+        projects.filter { !$0.nextStep.isEmpty }
+    }
+
     // MARK: - Initialization
     private init() {
         loadSampleData()
@@ -57,7 +87,8 @@ class LuxHomeModel {
                 lastCompletedDate: nil,
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 8
+                totalSubtasks: 8,
+                isRecurring: false
             ),
             LuxTask(
                 id: sampleTaskId2,
@@ -67,7 +98,8 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 5),
                 isCompleted: false,
                 completedSubtasks: 3,
-                totalSubtasks: 6
+                totalSubtasks: 6,
+                isRecurring: false
             ),
             LuxTask(
                 id: sampleTaskId3,
@@ -77,7 +109,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 30),
                 isCompleted: false,
                 completedSubtasks: 1,
-                totalSubtasks: 4
+                totalSubtasks: 4,
+                isRecurring: true,
+                recurringInterval: 2,
+                recurringUnit: .weeks
             ),
             LuxTask(
                 id: sampleTaskId4,
@@ -87,7 +122,8 @@ class LuxHomeModel {
                 lastCompletedDate: Date(),
                 isCompleted: true,
                 completedSubtasks: 3,
-                totalSubtasks: 3
+                totalSubtasks: 3,
+                isRecurring: false
             ),
             LuxTask(
                 id: sampleTaskId6,
@@ -97,7 +133,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 2),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 1,
+                recurringUnit: .weeks
             ),
             LuxTask(
                 id: sampleTaskId7,
@@ -107,7 +146,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 4),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 3,
+                recurringUnit: .months
             ),
             LuxTask(
                 id: sampleTaskId8,
@@ -117,7 +159,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 6),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 6,
+                recurringUnit: .months
             ),
             LuxTask(
                 id: sampleTaskId5,
@@ -127,7 +172,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 5),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 1,
+                recurringUnit: .months
             )
         ]
     }
@@ -461,19 +509,29 @@ class LuxHomeModel {
         tasks.append(task)
     }
 
-    func createTask(name: String, dueDay: String, isRecurring: Bool, subtaskNames: [String]) {
+    func createTask(name: String, isRecurring: Bool, recurringInterval: Int?, recurringUnit: RecurringInterval?, subtaskNames: [String]) {
         let finalSubtaskNames = subtaskNames.isEmpty ? [name] : subtaskNames
+
+        var description = "Maintenance task"
+        if isRecurring, let interval = recurringInterval, let unit = recurringUnit {
+            if interval == 1 {
+                description = "Repeats every \(unit.rawValue.dropLast())"
+            } else {
+                description = "Repeats every \(interval) \(unit.rawValue)"
+            }
+        }
 
         let newTask = LuxTask(
             name: name,
             status: "To Do",
-            description: "Due \(dueDay)\(isRecurring ? " (Recurring)" : "")",
+            description: description,
             lastCompletedDate: nil,
             isCompleted: false,
             completedSubtasks: 0,
             totalSubtasks: finalSubtaskNames.count,
             isRecurring: isRecurring,
-            recurringDay: isRecurring ? dueDay : nil
+            recurringInterval: recurringInterval,
+            recurringUnit: recurringUnit
         )
 
         tasks.append(newTask)
@@ -492,21 +550,39 @@ class LuxHomeModel {
     func checkAndResetRecurringTasks() {
         let calendar = Calendar.current
         let today = Date()
-        let currentWeekday = calendar.component(.weekday, from: today)
-        let weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-        let todayName = weekdayNames[currentWeekday - 1]
 
         for index in tasks.indices {
             let task = tasks[index]
-            guard task.isRecurring, let recurringDay = task.recurringDay else { continue }
+            guard task.isRecurring,
+                  let interval = task.recurringInterval,
+                  let unit = task.recurringUnit,
+                  let lastCompleted = task.lastCompletedDate,
+                  task.isCompleted else { continue }
 
-            if recurringDay == todayName && task.isCompleted {
-                resetTaskForNewWeek(at: index, taskId: task.id)
+            // Calculate if enough time has passed based on the interval
+            let shouldReset: Bool
+            switch unit {
+            case .weeks:
+                if let weeksAgo = calendar.dateComponents([.weekOfYear], from: lastCompleted, to: today).weekOfYear {
+                    shouldReset = weeksAgo >= interval
+                } else {
+                    shouldReset = false
+                }
+            case .months:
+                if let monthsAgo = calendar.dateComponents([.month], from: lastCompleted, to: today).month {
+                    shouldReset = monthsAgo >= interval
+                } else {
+                    shouldReset = false
+                }
+            }
+
+            if shouldReset {
+                resetTaskForNewCycle(at: index, taskId: task.id)
             }
         }
     }
 
-    private func resetTaskForNewWeek(at taskIndex: Int, taskId: UUID) {
+    private func resetTaskForNewCycle(at taskIndex: Int, taskId: UUID) {
         tasks[taskIndex].isCompleted = false
         tasks[taskIndex].completedSubtasks = 0
         resetSubtasksForTask(taskId)
