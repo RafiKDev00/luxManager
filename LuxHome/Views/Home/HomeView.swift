@@ -53,6 +53,10 @@ struct RootTabView: View {
             Tab("Projects", systemImage:  "wrench.and.screwdriver") {
                 ProjectView()
             }
+            
+            Tab("Upcoming", systemImage: "calendar"){
+                DashboardView()
+            }
 
             Tab("Workers", systemImage: "person.2") {
                 WorkersView()

@@ -12,8 +12,8 @@ struct ScheduledTaskCreationView: View {
     @Environment(LuxHomeModel.self) private var model
 
     @State private var taskName: String = ""
-    @State private var selectedDay: DayOfWeek = .friday
-    @State private var isRecurring: Bool = false
+    @State private var recurringInterval: Int = 1
+    @State private var recurringUnit: RecurringInterval = .weeks
     @State private var subtasks: [SubtaskItem] = []
 
     var body: some View {
@@ -27,16 +27,10 @@ struct ScheduledTaskCreationView: View {
                 }
 
                 Section {
-                    Picker("Due Day", selection: $selectedDay) {
-                        ForEach(DayOfWeek.allCases) { day in
-                            Text(day.rawValue).tag(day)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(.orange)
-
-                    Toggle("Recurring", isOn: $isRecurring)
-                        .tint(.orange)
+                    RecurringIntervalPicker(
+                        interval: $recurringInterval,
+                        unit: $recurringUnit
+                    )
                 } header: {
                     Text("Schedule")
                 }
@@ -106,8 +100,9 @@ struct ScheduledTaskCreationView: View {
         let subtaskNames = subtasks.map { $0.name }.filter { !$0.isEmpty }
         model.createTask(
             name: taskName,
-            dueDay: selectedDay.rawValue,
-            isRecurring: isRecurring,
+            isRecurring: true,
+            recurringInterval: recurringInterval,
+            recurringUnit: recurringUnit,
             subtaskNames: subtaskNames
         )
         dismiss()

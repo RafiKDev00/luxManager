@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct SubtaskRow: View {
     @Environment(LuxHomeModel.self) private var model
@@ -18,6 +19,9 @@ struct SubtaskRow: View {
     let onPhotoTap: (UUID) -> Void
     let onDelete: (UUID) -> Void
 
+    @State private var showingPhotoOverlay = false
+    @State private var selectedPhotoIndex: Int = 0
+
     var body: some View {
         HStack {
             subtaskInfo
@@ -25,6 +29,10 @@ struct SubtaskRow: View {
 
             if isEditMode {
                 swipeIndicator
+            }
+
+            if !subtask.photoURLs.isEmpty && !isEditMode {
+                photoThumbnailStrip
             }
 
             subtaskActions
@@ -36,6 +44,13 @@ struct SubtaskRow: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(isLast ? .hidden : .visible, edges: .bottom)
         .clipShape(rowShape)
+        .sheet(isPresented: $showingPhotoOverlay) {
+            PhotoOverlayView(
+                photoURLs: subtask.photoURLs,
+                selectedIndex: $selectedPhotoIndex,
+                isPresented: $showingPhotoOverlay
+            )
+        }
     }
 
     private var subtaskInfo: some View {
@@ -66,9 +81,11 @@ struct SubtaskRow: View {
         if isEditMode {
             deleteButton
         } else {
-            cameraOrCheckmarkButton
+            cameraButton
 
-            if !subtask.isCompleted {
+            if subtask.isCompleted {
+                checkmarkButton
+            } else {
                 manualCompletionButton
             }
         }
@@ -85,15 +102,116 @@ struct SubtaskRow: View {
         .buttonStyle(.plain)
     }
 
-    private var cameraOrCheckmarkButton: some View {
+    private var cameraButton: some View {
         Button {
-            handleCameraButtonTap()
+            onPhotoTap(subtask.id)
         } label: {
-            Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "camera.fill")
+            Image(systemName: "camera.fill")
                 .font(.system(size: 24))
-                .foregroundStyle(subtask.isCompleted ? .orange : .gray)
+                .foregroundStyle(.gray)
         }
         .buttonStyle(.plain)
+    }
+
+    private var checkmarkButton: some View {
+        Button {
+            if !subtask.photoURLs.isEmpty {
+                selectedPhotoIndex = 0
+                showingPhotoOverlay = true
+            } else {
+                model.toggleSubtaskCompletion(subtask.id)
+            }
+        } label: {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(.orange)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var photoThumbnailStrip: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(subtask.photoURLs.prefix(2).enumerated()), id: \.offset) { index, urlString in
+                if let url = URL(string: urlString) {
+                    KFImage(url)
+                        .placeholder {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(.tertiarySystemGroupedBackground))
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.gray)
+                                )
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .onTapGesture {
+                            selectedPhotoIndex = index
+                            showingPhotoOverlay = true
+                        }
+                } else {
+                    // Fallback for invalid URLs
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(.tertiarySystemGroupedBackground))
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.gray)
+                        )
+                        .onTapGesture {
+                            selectedPhotoIndex = index
+                            showingPhotoOverlay = true
+                        }
+                }
+            }
+
+            if subtask.photoURLs.count > 2 {
+                ZStack {
+                    if let url = URL(string: subtask.photoURLs[2]) {
+                        KFImage(url)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(.tertiarySystemGroupedBackground))
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(.gray)
+                                    )
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .blur(radius: 2)
+                            .opacity(0.6)
+                    } else {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(.tertiarySystemGroupedBackground))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.gray)
+                            )
+                            .blur(radius: 2)
+                            .opacity(0.6)
+                    }
+
+                    Text("•••")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
+                }
+                .frame(width: 40, height: 40)
+                .onTapGesture {
+                    selectedPhotoIndex = 2
+                    showingPhotoOverlay = true
+                }
+            }
+        }
     }
 
     private var manualCompletionButton: some View {
@@ -117,11 +235,71 @@ struct SubtaskRow: View {
         )
     }
 
-    private func handleCameraButtonTap() {
-        if subtask.isCompleted {
-            model.toggleSubtaskCompletion(subtask.id)
-        } else {
-            onPhotoTap(subtask.id)
+}
+
+// MARK: - Photo Overlay View
+struct PhotoOverlayView: View {
+    let photoURLs: [String]
+    @Binding var selectedIndex: Int
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                TabView(selection: $selectedIndex) {
+                    ForEach(Array(photoURLs.enumerated()), id: \.offset) { index, urlString in
+                        if let url = URL(string: urlString) {
+                            KFImage(url)
+                                .placeholder {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(.systemGray5))
+                                        .overlay(
+                                            Image(systemName: "photo")
+                                                .font(.system(size: 60))
+                                                .foregroundStyle(.gray)
+                                        )
+                                }
+                                .resizable()
+                                .scaledToFit()
+                                .padding()
+                                .tag(index)
+                        } else {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.systemGray5))
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 60))
+                                        .foregroundStyle(.gray)
+                                )
+                                .padding()
+                                .tag(index)
+                        }
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.white, .gray.opacity(0.6))
+                    }
+                }
+
+                ToolbarItem(placement: .bottomBar) {
+                    Text("\(selectedIndex + 1) of \(photoURLs.count)")
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .bottomBar)
         }
     }
 }

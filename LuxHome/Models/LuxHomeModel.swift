@@ -31,6 +31,37 @@ class LuxHomeModel {
         tasks.filter { !$0.isCompleted }
     }
 
+    // MARK: - Dashboard Data
+    var tasksThisWeek: [LuxTask] {
+        let calendar = Calendar.current
+        let now = Date()
+        let endOfWeek = calendar.date(byAdding: .day, value: 7, to: now) ?? now
+
+        return tasks.filter { task in
+            guard let dueDate = task.nextDueDate else { return false }
+            return dueDate >= now && dueDate <= endOfWeek
+        }.sorted { ($0.nextDueDate ?? Date.distantFuture) < ($1.nextDueDate ?? Date.distantFuture) }
+    }
+
+    var workersThisWeek: [(worker: LuxWorker, visit: ScheduledVisit)] {
+        let calendar = Calendar.current
+        let now = Date()
+        let endOfWeek = calendar.date(byAdding: .day, value: 7, to: now) ?? now
+
+        return workers.flatMap { worker in
+            worker.scheduledVisits.compactMap { visit in
+                if visit.date >= now && visit.date <= endOfWeek {
+                    return (worker: worker, visit: visit)
+                }
+                return nil
+            }
+        }.sorted { $0.visit.date < $1.visit.date }
+    }
+
+    var projectNextSteps: [LuxProject] {
+        projects.filter { !$0.nextStep.isEmpty }
+    }
+
     // MARK: - Initialization
     private init() {
         loadSampleData()
@@ -57,7 +88,8 @@ class LuxHomeModel {
                 lastCompletedDate: nil,
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 8
+                totalSubtasks: 8,
+                isRecurring: false
             ),
             LuxTask(
                 id: sampleTaskId2,
@@ -67,7 +99,8 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 5),
                 isCompleted: false,
                 completedSubtasks: 3,
-                totalSubtasks: 6
+                totalSubtasks: 6,
+                isRecurring: false
             ),
             LuxTask(
                 id: sampleTaskId3,
@@ -77,7 +110,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 30),
                 isCompleted: false,
                 completedSubtasks: 1,
-                totalSubtasks: 4
+                totalSubtasks: 4,
+                isRecurring: true,
+                recurringInterval: 2,
+                recurringUnit: .weeks
             ),
             LuxTask(
                 id: sampleTaskId4,
@@ -87,7 +123,8 @@ class LuxHomeModel {
                 lastCompletedDate: Date(),
                 isCompleted: true,
                 completedSubtasks: 3,
-                totalSubtasks: 3
+                totalSubtasks: 3,
+                isRecurring: false
             ),
             LuxTask(
                 id: sampleTaskId6,
@@ -97,7 +134,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 2),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 1,
+                recurringUnit: .weeks
             ),
             LuxTask(
                 id: sampleTaskId7,
@@ -107,7 +147,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 4),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 3,
+                recurringUnit: .months
             ),
             LuxTask(
                 id: sampleTaskId8,
@@ -117,7 +160,10 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 6),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 6,
+                recurringUnit: .months
             ),
             LuxTask(
                 id: sampleTaskId5,
@@ -127,10 +173,17 @@ class LuxHomeModel {
                 lastCompletedDate: Date().addingTimeInterval(-86400 * 5),
                 isCompleted: false,
                 completedSubtasks: 0,
-                totalSubtasks: 1
+                totalSubtasks: 1,
+                isRecurring: true,
+                recurringInterval: 1,
+                recurringUnit: .months
             )
         ]
     }
+
+    static let gardenProjectId = UUID()
+    static let kitchenProjectId = UUID()
+    static let basementProjectId = UUID()
 
     static func sampleProjects(using workers: [LuxWorker]) -> [LuxProject] {
         let mariaId = workers.count > 0 ? workers[0].id : UUID()
@@ -139,6 +192,7 @@ class LuxHomeModel {
 
         return [
             LuxProject(
+                id: gardenProjectId,
                 assignedWorkers: [
                     ProjectWorkerAssignment(workerId: mariaId, role: "Landscaping Lead"),
                     ProjectWorkerAssignment(workerId: johnId, role: "Irrigation")
@@ -156,8 +210,7 @@ class LuxHomeModel {
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -6, to: Date())!,
-                        text: "Demolition of old patio and removal of existing shrubbery. Area cleared for new construction.",
-                        photoURL: nil
+                        text: "Demolition of old patio and removal of existing shrubbery. Area cleared for new construction."
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -3, to: Date())!,
@@ -165,12 +218,12 @@ class LuxHomeModel {
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
-                        text: "Irrigation lines installed in designated areas. Initial selection of drought-resistant plants received for review.",
-                        photoURL: nil
+                        text: "Irrigation lines installed in designated areas. Initial selection of drought-resistant plants received for review."
                     )
                 ]
             ),
             LuxProject(
+                id: kitchenProjectId,
                 assignedWorkers: [
                     ProjectWorkerAssignment(workerId: andrewId, role: "General Contractor")
                 ],
@@ -187,12 +240,12 @@ class LuxHomeModel {
                     ),
                     ProgressLogEntry(
                         date: Calendar.current.date(byAdding: .day, value: -2, to: Date())!,
-                        text: "New cabinets installed and leveled.",
-                        photoURL: nil
+                        text: "New cabinets installed and leveled."
                     )
                 ]
             ),
             LuxProject(
+                id: basementProjectId,
                 assignedWorkers: [
                     ProjectWorkerAssignment(workerId: mariaId, role: "Initial inspection")
                 ],
@@ -212,8 +265,8 @@ class LuxHomeModel {
         ]
     }
 
-    static var sampleWorkers: [LuxWorker] {
-        [
+    static func sampleWorkers(projectIds: [UUID]) -> [LuxWorker] {
+        return [
             LuxWorker(
                 name: "Maria Rodriguez",
                 company: "GreenScape Gardeners",
@@ -223,8 +276,23 @@ class LuxHomeModel {
                 serviceTypes: ["Gardener", "Landscaping", "Tree Trimming"],
                 scheduleType: .weekly,
                 isScheduled: true,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 5, to: Date()),
-                scheduledVisits: [],
+                nextVisit: Calendar.current.date(byAdding: .day, value: 2, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date(),
+                        notes: "Weekly garden maintenance and irrigation check",
+                        projectId: gardenProjectId
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 9, to: Date()) ?? Date(),
+                        notes: "Plant new drought-resistant shrubs",
+                        projectId: gardenProjectId
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 16, to: Date()) ?? Date(),
+                        notes: "Monthly lawn care"
+                    )
+                ],
                 photoURL: nil
             ),
             LuxWorker(
@@ -235,8 +303,17 @@ class LuxHomeModel {
                 serviceTypes: ["Cleaner", "Deep Cleaning", "Window Washing"],
                 scheduleType: .biWeekly,
                 isScheduled: true,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 6, to: Date()),
-                scheduledVisits: []
+                nextVisit: Calendar.current.date(byAdding: .day, value: 3, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date(),
+                        notes: "Deep clean kitchen and bathrooms"
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 17, to: Date()) ?? Date(),
+                        notes: "Regular bi-weekly cleaning"
+                    )
+                ]
             ),
             LuxWorker(
                 name: "Michael Chen",
@@ -245,9 +322,23 @@ class LuxHomeModel {
                 specialization: "Pool Service",
                 serviceTypes: ["Pool Service", "Equipment Repair", "Water Testing"],
                 scheduleType: .weekly,
-                isScheduled: false,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 7, to: Date()),
-                scheduledVisits: []
+                isScheduled: true,
+                nextVisit: Calendar.current.date(byAdding: .day, value: 5, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 5, to: Date()) ?? Date(),
+                        notes: "Weekly pool cleaning and chemical balance",
+                        checklist: [
+                            ChecklistItem(title: "Test water pH", isCompleted: false),
+                            ChecklistItem(title: "Clean filters", isCompleted: false),
+                            ChecklistItem(title: "Vacuum pool floor", isCompleted: false)
+                        ]
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 12, to: Date()) ?? Date(),
+                        notes: "Weekly maintenance"
+                    )
+                ]
             ),
             LuxWorker(
                 name: "Sarah Lee",
@@ -256,9 +347,24 @@ class LuxHomeModel {
                 specialization: "HVAC Tech",
                 serviceTypes: ["HVAC Tech", "AC Repair", "Heating Maintenance"],
                 scheduleType: .monthly,
-                isScheduled: false,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 8, to: Date()),
-                scheduledVisits: []
+                isScheduled: true,
+                nextVisit: Calendar.current.date(byAdding: .day, value: 1, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date(),
+                        notes: "Monthly HVAC inspection and filter replacement",
+                        checklist: [
+                            ChecklistItem(title: "Replace air filters", isCompleted: false),
+                            ChecklistItem(title: "Check thermostat", isCompleted: false),
+                            ChecklistItem(title: "Inspect ductwork", isCompleted: false)
+                        ],
+                        projectId: kitchenProjectId
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 31, to: Date()) ?? Date(),
+                        notes: "Monthly HVAC maintenance"
+                    )
+                ]
             )
         ]
     }
@@ -375,7 +481,8 @@ class LuxHomeModel {
     func loadSampleData() {
         tasks = LuxHomeModel.sampleTasks
         subtasks = LuxHomeModel.sampleSubtasks
-        let seededWorkers = LuxHomeModel.sampleWorkers
+
+        let seededWorkers = LuxHomeModel.sampleWorkers(projectIds: [])
         workers = seededWorkers
         projects = LuxHomeModel.sampleProjects(using: seededWorkers)
         history = LuxHomeModel.sampleHistory
@@ -394,9 +501,9 @@ class LuxHomeModel {
         ]
 
         let paintingSubtasks = [
-            LuxSubTask(name: "Move furniture to center", isCompleted: true, taskId: sampleTaskId2, photoURL: "sample://photo1"),
+            LuxSubTask(name: "Move furniture to center", isCompleted: true, taskId: sampleTaskId2, photoURLs: ["sample://photo1"]),
             LuxSubTask(name: "Tape edges and trim", isCompleted: true, taskId: sampleTaskId2),
-            LuxSubTask(name: "Apply primer coat", isCompleted: true, taskId: sampleTaskId2, photoURL: "sample://photo2"),
+            LuxSubTask(name: "Apply primer coat", isCompleted: true, taskId: sampleTaskId2, photoURLs: ["sample://photo2"]),
             LuxSubTask(name: "Apply first paint coat", isCompleted: false, taskId: sampleTaskId2),
             LuxSubTask(name: "Apply second paint coat", isCompleted: false, taskId: sampleTaskId2),
             LuxSubTask(name: "Clean up and move furniture back", isCompleted: false, taskId: sampleTaskId2)
@@ -410,9 +517,9 @@ class LuxHomeModel {
         ]
 
         let inspectionSubtasks = [
-            LuxSubTask(name: "Call city inspector", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo3"),
+            LuxSubTask(name: "Call city inspector", isCompleted: true, taskId: sampleTaskId4, photoURLs: ["sample://photo3"]),
             LuxSubTask(name: "Schedule appointment", isCompleted: true, taskId: sampleTaskId4),
-            LuxSubTask(name: "Prepare documentation", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo4")
+            LuxSubTask(name: "Prepare documentation", isCompleted: true, taskId: sampleTaskId4, photoURLs: ["sample://photo4"])
         ]
 
         let singleSubtasks = [
@@ -453,23 +560,40 @@ class LuxHomeModel {
         }
     }
 
+    func updateTaskName(_ taskId: UUID, name: String) {
+        if let index = tasks.firstIndex(where: { $0.id == taskId }) {
+            tasks[index].name = name
+            logHistory(action: .edited, itemType: .task, itemName: name)
+        }
+    }
+
     func addTask(_ task: LuxTask) {
         tasks.append(task)
     }
 
-    func createTask(name: String, dueDay: String, isRecurring: Bool, subtaskNames: [String]) {
+    func createTask(name: String, isRecurring: Bool, recurringInterval: Int?, recurringUnit: RecurringInterval?, subtaskNames: [String]) {
         let finalSubtaskNames = subtaskNames.isEmpty ? [name] : subtaskNames
+
+        var description = "Maintenance task"
+        if isRecurring, let interval = recurringInterval, let unit = recurringUnit {
+            if interval == 1 {
+                description = "Repeats every \(unit.rawValue.dropLast())"
+            } else {
+                description = "Repeats every \(interval) \(unit.rawValue)"
+            }
+        }
 
         let newTask = LuxTask(
             name: name,
             status: "To Do",
-            description: "Due \(dueDay)\(isRecurring ? " (Recurring)" : "")",
+            description: description,
             lastCompletedDate: nil,
             isCompleted: false,
             completedSubtasks: 0,
             totalSubtasks: finalSubtaskNames.count,
             isRecurring: isRecurring,
-            recurringDay: isRecurring ? dueDay : nil
+            recurringInterval: recurringInterval,
+            recurringUnit: recurringUnit
         )
 
         tasks.append(newTask)
@@ -488,21 +612,39 @@ class LuxHomeModel {
     func checkAndResetRecurringTasks() {
         let calendar = Calendar.current
         let today = Date()
-        let currentWeekday = calendar.component(.weekday, from: today)
-        let weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-        let todayName = weekdayNames[currentWeekday - 1]
 
         for index in tasks.indices {
             let task = tasks[index]
-            guard task.isRecurring, let recurringDay = task.recurringDay else { continue }
+            guard task.isRecurring,
+                  let interval = task.recurringInterval,
+                  let unit = task.recurringUnit,
+                  let lastCompleted = task.lastCompletedDate,
+                  task.isCompleted else { continue }
 
-            if recurringDay == todayName && task.isCompleted {
-                resetTaskForNewWeek(at: index, taskId: task.id)
+            // Calculate if enough time has passed based on the interval
+            let shouldReset: Bool
+            switch unit {
+            case .weeks:
+                if let weeksAgo = calendar.dateComponents([.weekOfYear], from: lastCompleted, to: today).weekOfYear {
+                    shouldReset = weeksAgo >= interval
+                } else {
+                    shouldReset = false
+                }
+            case .months:
+                if let monthsAgo = calendar.dateComponents([.month], from: lastCompleted, to: today).month {
+                    shouldReset = monthsAgo >= interval
+                } else {
+                    shouldReset = false
+                }
+            }
+
+            if shouldReset {
+                resetTaskForNewCycle(at: index, taskId: task.id)
             }
         }
     }
 
-    private func resetTaskForNewWeek(at taskIndex: Int, taskId: UUID) {
+    private func resetTaskForNewCycle(at taskIndex: Int, taskId: UUID) {
         tasks[taskIndex].isCompleted = false
         tasks[taskIndex].completedSubtasks = 0
         resetSubtasksForTask(taskId)
@@ -538,8 +680,7 @@ class LuxHomeModel {
             id: UUID(),
             name: name,
             isCompleted: false,
-            taskId: taskId,
-            photoURL: nil
+            taskId: taskId
         )
         addSubtask(subtask)
         logHistory(action: .created, itemType: .subtask, itemName: name)
@@ -573,12 +714,15 @@ class LuxHomeModel {
         }
     }
 
-    func updateSubtaskPhoto(_ subtaskId: UUID, photoURL: String) {
+    func addPhotoToSubtask(_ subtaskId: UUID, photoURL: String) {
+        print("[Model] addPhotoToSubtask called for: \(subtaskId), URL: \(photoURL)")
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
-            subtasks[index].photoURL = photoURL
-            subtasks[index].isCompleted = true
+            print("[Model] Found subtask at index \(index), current photo count: \(subtasks[index].photoURLs.count)")
+            subtasks[index].photoURLs.append(photoURL)
+            print("[Model] Photo added, new count: \(subtasks[index].photoURLs.count)")
             logHistory(action: .photoAdded, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
-            updateTaskSubtaskCounts(subtasks[index].taskId)
+        } else {
+            print("[Model] ERROR: Subtask not found with id: \(subtaskId)")
         }
     }
 
@@ -623,17 +767,54 @@ class LuxHomeModel {
         }
     }
 
-    func addProgressLogEntry(to projectId: UUID, text: String, photoURL: String?) {
+    func removePhotoFromProject(_ projectId: UUID, photoURL: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].photoURLs.removeAll { $0 == photoURL }
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func addProgressLogEntry(to projectId: UUID, text: String, photoURLs: [String]) {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             let entry = ProgressLogEntry(
                 date: Date(),
                 text: text,
-                photoURL: photoURL
+                photoURLs: photoURLs
             )
             projects[index].progressLog.insert(entry, at: 0)
-            if let photoURL = photoURL, !projects[index].photoURLs.contains(photoURL) {
-                projects[index].photoURLs.append(photoURL)
+            for photoURL in photoURLs {
+                if !projects[index].photoURLs.contains(photoURL) {
+                    projects[index].photoURLs.append(photoURL)
+                }
             }
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func addPhotoToProgressLogEntry(to projectId: UUID, entryId: UUID, photoURL: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            if let logIndex = projects[index].progressLog.firstIndex(where: { $0.id == entryId }) {
+                projects[index].progressLog[logIndex].photoURLs.append(photoURL)
+                if !projects[index].photoURLs.contains(photoURL) {
+                    projects[index].photoURLs.append(photoURL)
+                }
+                logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+            }
+        }
+    }
+
+    func updateProgressLogEntry(to projectId: UUID, entryId: UUID, text: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            if let logIndex = projects[index].progressLog.firstIndex(where: { $0.id == entryId }) {
+                projects[index].progressLog[logIndex].text = text
+                logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+            }
+        }
+    }
+
+    func deleteProgressLogEntry(from projectId: UUID, entryId: UUID) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].progressLog.removeAll { $0.id == entryId }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
         }
     }
@@ -656,6 +837,14 @@ class LuxHomeModel {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].status = status
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func updateProjectDetails(_ projectId: UUID, name: String, description: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].name = name
+            projects[index].description = description
+            logHistory(action: .edited, itemType: .project, itemName: name)
         }
     }
 

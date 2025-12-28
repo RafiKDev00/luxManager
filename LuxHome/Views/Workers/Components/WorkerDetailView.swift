@@ -28,6 +28,7 @@ struct WorkerDetailView: View {
     @State private var newVisitFrequency: ScheduleType = .oneTime
     @State private var showInlineAddVisit = false
     @State private var contactError: String?
+    @State private var selectedProjectId: UUID?
 
     private var worker: LuxWorker {
         model.workers.first(where: { $0.id == workerId }) ?? LuxWorker(
@@ -295,6 +296,20 @@ struct WorkerDetailView: View {
                         .lineLimit(2...4)
                         .tint(.orange)
 
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Tag to Associate with Project")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Picker("", selection: $selectedProjectId) {
+                            Text("None").tag(nil as UUID?)
+                            ForEach(model.projects) { project in
+                                Text(project.name).tag(project.id as UUID?)
+                            }
+                        }
+                        .tint(.orange)
+                    }
+
                     HStack {
                         Button("Cancel") {
                             withAnimation(.easeInOut) {
@@ -373,6 +388,19 @@ struct WorkerDetailView: View {
 
                 Spacer()
 
+            }
+
+            if let projectId = visit.projectId,
+               let project = model.projects.first(where: { $0.id == projectId }) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "hammer.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Text(project.name)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fontWeight(.semibold)
+                }
             }
 
             if !visit.notes.isEmpty {
@@ -531,7 +559,7 @@ struct WorkerDetailView: View {
     }
 
     private func saveNewVisit() {
-        let visit = ScheduledVisit(date: newVisitDate, notes: newVisitNotes)
+        let visit = ScheduledVisit(date: newVisitDate, notes: newVisitNotes, projectId: selectedProjectId)
         model.addScheduledVisit(to: workerId, visit: visit)
         resetVisitForm()
     }
@@ -539,6 +567,7 @@ struct WorkerDetailView: View {
     private func resetVisitForm() {
         newVisitNotes = ""
         newVisitDate = Date().addingTimeInterval(3600)
+        selectedProjectId = nil
     }
 }
 
@@ -595,7 +624,8 @@ struct FlowLayout: Layout {
 
 #Preview {
     NavigationStack {
-        WorkerDetailView(workerId: LuxHomeModel.sampleWorkers[0].id)
+        let workers = LuxHomeModel.sampleWorkers(projectIds: [])
+        WorkerDetailView(workerId: workers[0].id)
             .environment(LuxHomeModel.shared)
     }
 }

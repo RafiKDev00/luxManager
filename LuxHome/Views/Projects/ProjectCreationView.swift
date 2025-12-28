@@ -30,6 +30,12 @@ struct ProjectCreationView: View {
                 topBar
             }
         }
+        .sheet(isPresented: $showingAddWorker) {
+            WorkerCreationView { newWorker in
+                addAssignment(for: newWorker.id)
+            }
+            .environment(model)
+        }
     }
 
     private var projectDetailsSection: some View {
@@ -106,12 +112,6 @@ struct ProjectCreationView: View {
             }
         } header: {
             Text("Workers")
-        }
-        .sheet(isPresented: $showingAddWorker) {
-            WorkerCreationView { newWorker in
-                addAssignment(for: newWorker.id)
-            }
-            .environment(model)
         }
     }
 

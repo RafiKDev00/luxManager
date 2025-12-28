@@ -63,19 +63,22 @@ struct ScheduledVisit: Identifiable, Codable {
     var notes: String
     var checklist: [ChecklistItem]
     var isDone: Bool
+    var projectId: UUID?
 
     init(
         id: UUID = UUID(),
         date: Date,
         notes: String = "",
         checklist: [ChecklistItem] = [],
-        isDone: Bool = false
+        isDone: Bool = false,
+        projectId: UUID? = nil
     ) {
         self.id = id
         self.date = date
         self.notes = notes
         self.checklist = checklist
         self.isDone = isDone
+        self.projectId = projectId
     }
 }
 

@@ -20,8 +20,19 @@ struct ProjectDetailView: View {
     @State private var showingAddWorker = false
     @State private var assignments: [ProjectWorkerAssignment] = []
     @State private var pendingRemoveAssignment: UUID?
+    @State private var draftName: String = ""
+    @State private var draftDescription: String = ""
+    @State private var isEditingName = false
+    @State private var isEditingDescription = false
     @State private var isEditingNextStep = false
     @State private var draftNextStep: String = ""
+    @State private var roleEditing: Set<UUID> = []
+    @State private var pendingPhotoToDelete: String?
+    @State private var pendingLogToDelete: UUID?
+    @State private var editingLogId: UUID?
+    @State private var draftLogText: String = ""
+    @State private var addingPhotoToLogId: UUID?
+    @State private var selectedLogPhotoItem: PhotosPickerItem?
     @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
@@ -36,7 +47,7 @@ struct ProjectDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                descriptionSection
+                detailsSection
                 statusSection
                 nextStepSection
                 assignedWorkersSection
@@ -48,7 +59,7 @@ struct ProjectDetailView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(project.name)
+        .navigationTitle(draftName.isEmpty ? project.name : draftName)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -84,6 +95,9 @@ struct ProjectDetailView: View {
         }
         .onAppear {
             assignments = project.assignedWorkers
+            draftName = project.name
+            draftDescription = project.description
+            draftNextStep = project.nextStep
         }
         .onChange(of: assignments) { _, newValue in
             model.updateProjectAssignments(projectId, assignments: newValue)
@@ -98,33 +112,17 @@ struct ProjectDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach($assignments) { $assignment in
-                    NavigationLink {
-                        WorkerDetailView(workerId: assignment.workerId)
-                            .environment(model)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(workerName(for: assignment.workerId))
-                                    .font(.headline)
-                                TextField("Role", text: $assignment.role)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                            Spacer()
+                    workerRow(assignment: $assignment)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 pendingRemoveAssignment = assignment.id
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Remove", systemImage: "trash")
                             }
-                            .buttonStyle(.borderless)
                         }
-                        .padding(12)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
                 }
             }
             HStack{
-                
                 if !availableWorkers.isEmpty {
                     Menu {
                         ForEach(availableWorkers, id: \.id) { worker in
@@ -138,7 +136,7 @@ struct ProjectDetailView: View {
                 }
                 
                 Spacer()
-                
+
                 Button {
                     showingAddWorker = true
                 } label: {
@@ -161,12 +159,83 @@ struct ProjectDetailView: View {
         }
     }
 
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("Details")
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if isEditingName {
+                        TextField("Project Name", text: $draftName)
+                            .font(.title2.weight(.semibold))
+                            .tint(.orange)
+                        Button {
+                            saveNameDescription()
+                            isEditingName = false
+                        } label: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(draftName.isEmpty ? project.name : draftName)
+                            .font(.title2.weight(.semibold))
+                        Button {
+                            draftName = project.name
+                            isEditingName = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                HStack(alignment: .top, spacing: 6) {
+                    if isEditingDescription {
+                        TextField("Description", text: $draftDescription, axis: .vertical)
+                            .lineLimit(2...4)
+                            .tint(.orange)
+                        Button {
+                            saveNameDescription()
+                            isEditingDescription = false
+                        } label: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(draftDescription.isEmpty ? project.description : draftDescription)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                        Button {
+                            draftDescription = project.description
+                            isEditingDescription = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+        }
+        .alert("Remove log entry?", isPresented: .init(get: { pendingLogToDelete != nil }, set: { if !$0 { pendingLogToDelete = nil } })) {
+            Button("Cancel", role: .cancel) {
+                pendingLogToDelete = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let id = pendingLogToDelete {
+                    model.deleteProgressLogEntry(from: projectId, entryId: id)
+                }
+                pendingLogToDelete = nil
+            }
+        } message: {
+            Text("This will delete the progress log entry.")
+        }
+    }
+
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Description")
-            Text(project.description)
-                .font(.body)
-                .foregroundStyle(.primary)
+            EmptyView()
         }
     }
 
@@ -197,23 +266,24 @@ struct ProjectDetailView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    Text(project.nextStep)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Button {
-                        draftNextStep = project.nextStep
-                        withAnimation(.easeInOut) {
-                            isEditingNextStep = true
-                        }
-                        isNextStepFocused = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .foregroundStyle(.orange)
+                Text(project.nextStep)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button {
+                    draftNextStep = project.nextStep
+                    withAnimation(.easeInOut) {
+                        isEditingNextStep = true
                     }
+                    isNextStepFocused = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.orange)
                 }
             }
-            .padding(16)
+        }
+        .padding(16)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
@@ -273,9 +343,26 @@ struct ProjectDetailView: View {
                     .scaledToFill()
                     .frame(width: 140, height: 100)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .onLongPressGesture {
+                        pendingPhotoToDelete = urlString
+                    }
             } else {
                 placeholderPhoto
             }
+        }
+        .alert("Remove photo?", isPresented: .init(get: { pendingPhotoToDelete != nil }, set: { if !$0 { pendingPhotoToDelete = nil } })) {
+            Button("Cancel", role: .cancel) {
+                pendingPhotoToDelete = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let url = pendingPhotoToDelete {
+                    model.removePhotoFromProject(projectId, photoURL: url)
+                }
+                pendingPhotoToDelete = nil
+            }
+        } message: {
+            Text("This will remove the photo from the gallery.")
         }
     }
 
@@ -294,6 +381,13 @@ struct ProjectDetailView: View {
             }
             ForEach(project.progressLog) { entry in
                 progressLogEntry(entry)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            model.deleteProgressLogEntry(from: projectId, entryId: entry.id)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
             }
         }
     }
@@ -304,12 +398,68 @@ struct ProjectDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text(entry.text)
-                .font(.body)
-                .foregroundStyle(.primary)
+            if editingLogId == entry.id {
+                TextField("Progress", text: $draftLogText, axis: .vertical)
+                    .lineLimit(2...6)
+                    .tint(.orange)
+                HStack {
+                    Button {
+                        model.updateProgressLogEntry(to: projectId, entryId: entry.id, text: draftLogText)
+                        editingLogId = nil
+                        draftLogText = ""
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
 
-            if let urlString = entry.photoURL {
-                entryPhotoView(urlString: urlString)
+                    Button {
+                        editingLogId = nil
+                        draftLogText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                Text(entry.text)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                HStack(spacing: 12) {
+                    Button {
+                        editingLogId = entry.id
+                        draftLogText = entry.text
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+
+                    PhotosPicker(selection: $selectedLogPhotoItem, matching: .images) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.gray)
+                    }
+                    .buttonStyle(.plain)
+                    .onChange(of: selectedLogPhotoItem) { _, newItem in
+                        handleLogPhotoSelection(newItem, for: entry.id)
+                    }
+
+                    Button {
+                        pendingLogToDelete = entry.id
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !entry.photoURLs.isEmpty {
+                entryPhotosView(entry: entry)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -364,6 +514,31 @@ struct ProjectDetailView: View {
         }
     }
 
+    private func entryPhotosView(entry: ProgressLogEntry) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(entry.photoURLs, id: \.self) { urlString in
+                    if let url = URL(string: urlString) {
+                        KFImage(url)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.tertiarySystemGroupedBackground))
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.gray)
+                                    )
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func entryPhotoView(urlString: String) -> some View {
         if let url = URL(string: urlString) {
@@ -389,6 +564,53 @@ struct ProjectDetailView: View {
             )
     }
 
+    private func workerRow(assignment: Binding<ProjectWorkerAssignment>) -> some View {
+        let workerId = assignment.wrappedValue.workerId
+        return NavigationLink {
+            WorkerDetailView(workerId: workerId)
+                .environment(model)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(workerName(for: workerId))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        if roleEditing.contains(workerId) {
+                            TextField("Role", text: assignment.role)
+                                .textFieldStyle(.plain)
+                                .tint(.orange)
+                                .foregroundStyle(.primary)
+                            Button {
+                                roleEditing.remove(workerId)
+                            } label: {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                    Text(assignment.wrappedValue.role.isEmpty ? "Role not set" : assignment.wrappedValue.role)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                    Button {
+                        roleEditing.insert(workerId)
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
+                    }
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
     private func saveNextStep() {
         let text = draftNextStep.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -399,6 +621,22 @@ struct ProjectDetailView: View {
         isNextStepFocused = false
     }
 
+    private func saveNameDescription() {
+        let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDescription = draftDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        model.updateProjectDetails(
+            projectId,
+            name: trimmedName.isEmpty ? project.name : trimmedName,
+            description: trimmedDescription.isEmpty ? project.description : trimmedDescription
+        )
+    }
+
+    private func saveProjectEdits() {
+        saveNameDescription()
+        isEditingName = false
+        isEditingDescription = false
+    }
+
     private func cancelNextStepEdit() {
         draftNextStep = project.nextStep
         withAnimation(.easeInOut) {
@@ -406,11 +644,29 @@ struct ProjectDetailView: View {
         }
         isNextStepFocused = false
     }
+
+    private func handleLogPhotoSelection(_ photoItem: PhotosPickerItem?, for entryId: UUID) {
+        guard let photoItem else { return }
+
+        Task {
+            if let data = try? await photoItem.loadTransferable(type: Data.self) {
+                let filename = "\(UUID().uuidString).jpg"
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                try? data.write(to: tempURL)
+
+                await MainActor.run {
+                    model.addPhotoToProgressLogEntry(to: projectId, entryId: entryId, photoURL: tempURL.absoluteString)
+                    selectedLogPhotoItem = nil
+                }
+            }
+        }
+    }
 }
 
 #Preview {
     NavigationStack {
-        let workers = LuxHomeModel.sampleWorkers
+        let tempProjects = LuxHomeModel.sampleProjects(using: [])
+        let workers = LuxHomeModel.sampleWorkers(projectIds: tempProjects.map { $0.id })
         let projects = LuxHomeModel.sampleProjects(using: workers)
         ProjectDetailView(projectId: projects[0].id)
             .environment(LuxHomeModel.shared)
