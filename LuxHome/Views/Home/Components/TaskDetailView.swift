@@ -31,8 +31,15 @@ struct TaskDetailView: View {
 
     var isPhotoPickerPresented: Binding<Bool> {
         Binding(
-            get: { selectedSubtaskId != nil },
-            set: { if !$0 { selectedSubtaskId = nil } }
+            get: {
+                let isPresented = selectedSubtaskId != nil
+                print("[TaskDetail] PhotoPicker isPresented: \(isPresented), selectedSubtaskId: \(String(describing: selectedSubtaskId))")
+                return isPresented
+            },
+            set: { newValue in
+                print("[TaskDetail] PhotoPicker dismissed, newValue: \(newValue)")
+                // Don't clear selectedSubtaskId here - let onChange handle it after upload completes
+            }
         )
     }
 
@@ -62,10 +69,27 @@ struct TaskDetailView: View {
         .photosPicker(
             isPresented: isPhotoPickerPresented,
             selection: $selectedPhotoItem,
-            matching: .images
+            matching: .images,
+            photoLibrary: .shared()
         )
-        .onChange(of: selectedPhotoItem) { _, newItem in
-            handlePhotoSelection(newItem)
+        .onChange(of: selectedPhotoItem) { oldValue, newItem in
+            print("[TaskDetail] onChange triggered - oldValue: \(String(describing: oldValue)), newItem: \(String(describing: newItem))")
+
+            // Capture the photo item and subtask ID immediately before picker clears them
+            guard let photoItem = newItem, let subtaskId = selectedSubtaskId else {
+                print("[TaskDetail] onChange - photoItem or subtaskId is nil")
+                return
+            }
+
+            print("[TaskDetail] onChange - starting upload for subtask: \(subtaskId)")
+
+            // Launch async task with captured values
+            Task {
+                await uploadPhotoAndCompleteSubtask(photoItem, for: subtaskId)
+                await MainActor.run {
+                    clearPhotoSelection()
+                }
+            }
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -111,7 +135,10 @@ struct TaskDetailView: View {
                     subtasks: subtasks,
                     isEditMode: isEditMode,
                     hasAddButton: !isEditMode || isAddingSubtask,
-                    onPhotoTap: { selectedSubtaskId = $0 }
+                    onPhotoTap: { subtaskId in
+                        print("[TaskDetail] Camera tapped for subtask: \(subtaskId)")
+                        selectedSubtaskId = subtaskId
+                    }
                 )
 
                 if isAddingSubtask {
@@ -143,18 +170,22 @@ struct TaskDetailView: View {
         .scrollContentBackground(.hidden)
     }
 
-    private func handlePhotoSelection(_ photoItem: PhotosPickerItem?) {
-        guard let photoItem, let subtaskId = selectedSubtaskId else { return }
-
-        Task {
-            await uploadPhotoAndCompleteSubtask(photoItem, for: subtaskId)
-            clearPhotoSelection()
-        }
-    }
-
     private func uploadPhotoAndCompleteSubtask(_ photoItem: PhotosPickerItem, for subtaskId: UUID) async {
+        print("[TaskDetail] Starting photo upload for subtask: \(subtaskId)")
         if let data = try? await photoItem.loadTransferable(type: Data.self) {
-            model.updateSubtaskPhoto(subtaskId, photoURL: "placeholder://photo")
+            print("[TaskDetail] Photo data loaded, size: \(data.count) bytes")
+            let filename = "\(UUID().uuidString).jpg"
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            try? data.write(to: tempURL)
+            print("[TaskDetail] Photo saved to: \(tempURL.absoluteString)")
+
+            // Update on main thread
+            await MainActor.run {
+                model.addPhotoToSubtask(subtaskId, photoURL: tempURL.absoluteString)
+                print("[TaskDetail] Photo added to model for subtask: \(subtaskId)")
+            }
+        } else {
+            print("[TaskDetail] Failed to load photo data")
         }
     }
 

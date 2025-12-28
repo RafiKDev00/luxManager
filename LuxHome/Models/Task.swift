@@ -52,19 +52,19 @@ struct LuxSubTask: Identifiable, Codable {
     var name: String
     var isCompleted: Bool
     var taskId: UUID // Parent task reference
-    var photoURL: String? // Optional photo URL
+    var photoURLs: [String] // Multiple photo URLs
 
     init(
         id: UUID = UUID(),
         name: String,
         isCompleted: Bool = false,
         taskId: UUID,
-        photoURL: String? = nil
+        photoURLs: [String] = []
     ) {
         self.id = id
         self.name = name
         self.isCompleted = isCompleted
         self.taskId = taskId
-        self.photoURL = photoURL
+        self.photoURLs = photoURLs
     }
 }

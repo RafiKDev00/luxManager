@@ -394,9 +394,9 @@ class LuxHomeModel {
         ]
 
         let paintingSubtasks = [
-            LuxSubTask(name: "Move furniture to center", isCompleted: true, taskId: sampleTaskId2, photoURL: "sample://photo1"),
+            LuxSubTask(name: "Move furniture to center", isCompleted: true, taskId: sampleTaskId2, photoURLs: ["sample://photo1"]),
             LuxSubTask(name: "Tape edges and trim", isCompleted: true, taskId: sampleTaskId2),
-            LuxSubTask(name: "Apply primer coat", isCompleted: true, taskId: sampleTaskId2, photoURL: "sample://photo2"),
+            LuxSubTask(name: "Apply primer coat", isCompleted: true, taskId: sampleTaskId2, photoURLs: ["sample://photo2"]),
             LuxSubTask(name: "Apply first paint coat", isCompleted: false, taskId: sampleTaskId2),
             LuxSubTask(name: "Apply second paint coat", isCompleted: false, taskId: sampleTaskId2),
             LuxSubTask(name: "Clean up and move furniture back", isCompleted: false, taskId: sampleTaskId2)
@@ -410,9 +410,9 @@ class LuxHomeModel {
         ]
 
         let inspectionSubtasks = [
-            LuxSubTask(name: "Call city inspector", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo3"),
+            LuxSubTask(name: "Call city inspector", isCompleted: true, taskId: sampleTaskId4, photoURLs: ["sample://photo3"]),
             LuxSubTask(name: "Schedule appointment", isCompleted: true, taskId: sampleTaskId4),
-            LuxSubTask(name: "Prepare documentation", isCompleted: true, taskId: sampleTaskId4, photoURL: "sample://photo4")
+            LuxSubTask(name: "Prepare documentation", isCompleted: true, taskId: sampleTaskId4, photoURLs: ["sample://photo4"])
         ]
 
         let singleSubtasks = [
@@ -545,8 +545,7 @@ class LuxHomeModel {
             id: UUID(),
             name: name,
             isCompleted: false,
-            taskId: taskId,
-            photoURL: nil
+            taskId: taskId
         )
         addSubtask(subtask)
         logHistory(action: .created, itemType: .subtask, itemName: name)
@@ -580,12 +579,19 @@ class LuxHomeModel {
         }
     }
 
-    func updateSubtaskPhoto(_ subtaskId: UUID, photoURL: String) {
+    func addPhotoToSubtask(_ subtaskId: UUID, photoURL: String) {
+        print("[Model] addPhotoToSubtask called for: \(subtaskId), URL: \(photoURL)")
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
-            subtasks[index].photoURL = photoURL
-            subtasks[index].isCompleted = true
+            print("[Model] Found subtask at index \(index), current photo count: \(subtasks[index].photoURLs.count)")
+            subtasks[index].photoURLs.append(photoURL)
+            print("[Model] Photo added, new count: \(subtasks[index].photoURLs.count)")
+            if !subtasks[index].isCompleted {
+                subtasks[index].isCompleted = true
+                updateTaskSubtaskCounts(subtasks[index].taskId)
+            }
             logHistory(action: .photoAdded, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
-            updateTaskSubtaskCounts(subtasks[index].taskId)
+        } else {
+            print("[Model] ERROR: Subtask not found with id: \(subtaskId)")
         }
     }
 
