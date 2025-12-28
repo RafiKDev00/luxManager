@@ -665,7 +665,8 @@ struct ProjectDetailView: View {
 
 #Preview {
     NavigationStack {
-        let workers = LuxHomeModel.sampleWorkers
+        let tempProjects = LuxHomeModel.sampleProjects(using: [])
+        let workers = LuxHomeModel.sampleWorkers(projectIds: tempProjects.map { $0.id })
         let projects = LuxHomeModel.sampleProjects(using: workers)
         ProjectDetailView(projectId: projects[0].id)
             .environment(LuxHomeModel.shared)

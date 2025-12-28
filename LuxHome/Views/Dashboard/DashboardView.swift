@@ -2,7 +2,7 @@
 //  DashboardView.swift
 //  LuxHome
 //
-//  Created by RJ  Kigner on 12/28/25.
+//  Created by RJ Kigner on 12/28/25.
 //
 
 import SwiftUI
@@ -18,35 +18,20 @@ struct DashboardView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // Header
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("This Week")
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                            Text(weekDateRange)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
+                        headerSection
 
-                        // Maintenance Tasks Section
                         if !model.tasksThisWeek.isEmpty {
                             maintenanceTasksSection
                         }
 
-                        // Workers Section
                         if !model.workersThisWeek.isEmpty {
                             workersSection
                         }
 
-                        // Project Next Steps Section
                         if !model.projectNextSteps.isEmpty {
                             projectNextStepsSection
                         }
 
-                        // Empty state
                         if model.tasksThisWeek.isEmpty && model.workersThisWeek.isEmpty && model.projectNextSteps.isEmpty {
                             emptyState
                         }
@@ -56,6 +41,20 @@ struct DashboardView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("This Week")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Text(weekDateRange)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
     }
 
     private var maintenanceTasksSection: some View {
@@ -78,8 +77,8 @@ struct DashboardView: View {
             sectionHeader(title: "Scheduled Workers", icon: "person.2")
 
             VStack(spacing: 0) {
-                ForEach(Array(model.workersThisWeek.enumerated()), id: \.element.worker.id) { index, item in
-                    WorkerVisitRow(worker: item.worker, nextVisit: item.nextVisit, isLast: index == model.workersThisWeek.count - 1)
+                ForEach(Array(model.workersThisWeek.enumerated()), id: \.offset) { index, item in
+                    WorkerVisitRow(worker: item.worker, visit: item.visit, isLast: index == model.workersThisWeek.count - 1)
                 }
             }
             .background(Color(.secondarySystemGroupedBackground))
@@ -143,164 +142,6 @@ struct DashboardView: View {
         let endString = formatter.string(from: endOfWeek)
 
         return "\(startString) - \(endString)"
-    }
-}
-
-// MARK: - Row Components
-struct MaintenanceTaskRow: View {
-    let task: LuxTask
-    let isLast: Bool
-
-    var body: some View {
-        NavigationLink(destination: TaskDetailView(task: task).environment(LuxHomeModel.shared)) {
-            HStack(spacing: 12) {
-                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.orange)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(task.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-
-                    if let dueDate = task.nextDueDate {
-                        Text(formattedDate(dueDate))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Text(task.isCompleted ? "Completed" : task.dueDateDescription())
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-        }
-        .buttonStyle(.plain)
-
-        if !isLast {
-            Divider()
-                .padding(.leading, 48)
-        }
-    }
-
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter.string(from: date)
-    }
-}
-
-struct WorkerVisitRow: View {
-    @Environment(LuxHomeModel.self) private var model
-    let worker: LuxWorker
-    let nextVisit: Date
-    let isLast: Bool
-
-    var body: some View {
-        NavigationLink(destination: WorkerDetailView(workerId: worker.id).environment(model)) {
-            HStack(spacing: 12) {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.orange)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(worker.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-
-                    Text(worker.specialization)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(formattedDate(nextVisit))
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-
-                    Text(relativeDateDescription(nextVisit))
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-        }
-        .buttonStyle(.plain)
-
-        if !isLast {
-            Divider()
-                .padding(.leading, 56)
-        }
-    }
-
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d"
-        return formatter.string(from: date)
-    }
-
-    private func relativeDateDescription(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let now = calendar.startOfDay(for: Date())
-        let target = calendar.startOfDay(for: date)
-
-        let days = calendar.dateComponents([.day], from: now, to: target).day ?? 0
-
-        if days == 0 {
-            return "Today"
-        } else if days == 1 {
-            return "Tomorrow"
-        } else {
-            return "In \(days) days"
-        }
-    }
-}
-
-struct ProjectNextStepRow: View {
-    @Environment(LuxHomeModel.self) private var model
-    let project: LuxProject
-    let isLast: Bool
-
-    var body: some View {
-        NavigationLink(destination: ProjectDetailView(projectId: project.id).environment(model)) {
-            HStack(spacing: 12) {
-                Image(systemName: "hammer.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.orange)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(project.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-
-                    Text(project.nextStep)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-        }
-        .buttonStyle(.plain)
-
-        if !isLast {
-            Divider()
-                .padding(.leading, 56)
-        }
     }
 }
 

@@ -43,18 +43,19 @@ class LuxHomeModel {
         }.sorted { ($0.nextDueDate ?? Date.distantFuture) < ($1.nextDueDate ?? Date.distantFuture) }
     }
 
-    var workersThisWeek: [(worker: LuxWorker, nextVisit: Date)] {
+    var workersThisWeek: [(worker: LuxWorker, visit: ScheduledVisit)] {
         let calendar = Calendar.current
         let now = Date()
         let endOfWeek = calendar.date(byAdding: .day, value: 7, to: now) ?? now
 
-        return workers.compactMap { worker in
-            guard let nextVisit = worker.nextVisit,
-                  nextVisit >= now && nextVisit <= endOfWeek else {
+        return workers.flatMap { worker in
+            worker.scheduledVisits.compactMap { visit in
+                if visit.date >= now && visit.date <= endOfWeek {
+                    return (worker: worker, visit: visit)
+                }
                 return nil
             }
-            return (worker: worker, nextVisit: nextVisit)
-        }.sorted { $0.nextVisit < $1.nextVisit }
+        }.sorted { $0.visit.date < $1.visit.date }
     }
 
     var projectNextSteps: [LuxProject] {
@@ -257,8 +258,11 @@ class LuxHomeModel {
         ]
     }
 
-    static var sampleWorkers: [LuxWorker] {
-        [
+    static func sampleWorkers(projectIds: [UUID]) -> [LuxWorker] {
+        let gardenProjectId = projectIds.count > 0 ? projectIds[0] : nil
+        let kitchenProjectId = projectIds.count > 1 ? projectIds[1] : nil
+
+        return [
             LuxWorker(
                 name: "Maria Rodriguez",
                 company: "GreenScape Gardeners",
@@ -268,8 +272,23 @@ class LuxHomeModel {
                 serviceTypes: ["Gardener", "Landscaping", "Tree Trimming"],
                 scheduleType: .weekly,
                 isScheduled: true,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 5, to: Date()),
-                scheduledVisits: [],
+                nextVisit: Calendar.current.date(byAdding: .day, value: 2, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date(),
+                        notes: "Weekly garden maintenance and irrigation check",
+                        projectId: gardenProjectId
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 9, to: Date()) ?? Date(),
+                        notes: "Plant new drought-resistant shrubs",
+                        projectId: gardenProjectId
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 16, to: Date()) ?? Date(),
+                        notes: "Monthly lawn care"
+                    )
+                ],
                 photoURL: nil
             ),
             LuxWorker(
@@ -280,8 +299,17 @@ class LuxHomeModel {
                 serviceTypes: ["Cleaner", "Deep Cleaning", "Window Washing"],
                 scheduleType: .biWeekly,
                 isScheduled: true,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 6, to: Date()),
-                scheduledVisits: []
+                nextVisit: Calendar.current.date(byAdding: .day, value: 3, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date(),
+                        notes: "Deep clean kitchen and bathrooms"
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 17, to: Date()) ?? Date(),
+                        notes: "Regular bi-weekly cleaning"
+                    )
+                ]
             ),
             LuxWorker(
                 name: "Michael Chen",
@@ -290,9 +318,23 @@ class LuxHomeModel {
                 specialization: "Pool Service",
                 serviceTypes: ["Pool Service", "Equipment Repair", "Water Testing"],
                 scheduleType: .weekly,
-                isScheduled: false,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 7, to: Date()),
-                scheduledVisits: []
+                isScheduled: true,
+                nextVisit: Calendar.current.date(byAdding: .day, value: 5, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 5, to: Date()) ?? Date(),
+                        notes: "Weekly pool cleaning and chemical balance",
+                        checklist: [
+                            ChecklistItem(title: "Test water pH", isCompleted: false),
+                            ChecklistItem(title: "Clean filters", isCompleted: false),
+                            ChecklistItem(title: "Vacuum pool floor", isCompleted: false)
+                        ]
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 12, to: Date()) ?? Date(),
+                        notes: "Weekly maintenance"
+                    )
+                ]
             ),
             LuxWorker(
                 name: "Sarah Lee",
@@ -301,9 +343,24 @@ class LuxHomeModel {
                 specialization: "HVAC Tech",
                 serviceTypes: ["HVAC Tech", "AC Repair", "Heating Maintenance"],
                 scheduleType: .monthly,
-                isScheduled: false,
-                nextVisit: Calendar.current.date(byAdding: .day, value: 8, to: Date()),
-                scheduledVisits: []
+                isScheduled: true,
+                nextVisit: Calendar.current.date(byAdding: .day, value: 1, to: Date()),
+                scheduledVisits: [
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date(),
+                        notes: "Monthly HVAC inspection and filter replacement",
+                        checklist: [
+                            ChecklistItem(title: "Replace air filters", isCompleted: false),
+                            ChecklistItem(title: "Check thermostat", isCompleted: false),
+                            ChecklistItem(title: "Inspect ductwork", isCompleted: false)
+                        ],
+                        projectId: kitchenProjectId
+                    ),
+                    ScheduledVisit(
+                        date: Calendar.current.date(byAdding: .day, value: 31, to: Date()) ?? Date(),
+                        notes: "Monthly HVAC maintenance"
+                    )
+                ]
             )
         ]
     }
@@ -420,7 +477,11 @@ class LuxHomeModel {
     func loadSampleData() {
         tasks = LuxHomeModel.sampleTasks
         subtasks = LuxHomeModel.sampleSubtasks
-        let seededWorkers = LuxHomeModel.sampleWorkers
+
+        let tempProjects = LuxHomeModel.sampleProjects(using: [])
+        let projectIds = tempProjects.map { $0.id }
+
+        let seededWorkers = LuxHomeModel.sampleWorkers(projectIds: projectIds)
         workers = seededWorkers
         projects = LuxHomeModel.sampleProjects(using: seededWorkers)
         history = LuxHomeModel.sampleHistory
