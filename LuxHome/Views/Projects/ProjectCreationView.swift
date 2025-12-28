@@ -108,7 +108,10 @@ struct ProjectCreationView: View {
             Text("Workers")
         }
         .sheet(isPresented: $showingAddWorker) {
-            AddWorkerView()
+            WorkerCreationView { newWorker in
+                addAssignment(for: newWorker.id)
+            }
+            .environment(model)
         }
     }
 
