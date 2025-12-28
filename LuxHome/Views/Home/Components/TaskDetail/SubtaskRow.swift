@@ -44,14 +44,12 @@ struct SubtaskRow: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(isLast ? .hidden : .visible, edges: .bottom)
         .clipShape(rowShape)
-        .overlay {
-            if showingPhotoOverlay {
-                PhotoOverlayView(
-                    photoURLs: subtask.photoURLs,
-                    selectedIndex: $selectedPhotoIndex,
-                    isPresented: $showingPhotoOverlay
-                )
-            }
+        .sheet(isPresented: $showingPhotoOverlay) {
+            PhotoOverlayView(
+                photoURLs: subtask.photoURLs,
+                selectedIndex: $selectedPhotoIndex,
+                isPresented: $showingPhotoOverlay
+            )
         }
     }
 
@@ -244,36 +242,11 @@ struct PhotoOverlayView: View {
     let photoURLs: [String]
     @Binding var selectedIndex: Int
     @Binding var isPresented: Bool
-    @State private var dragOffset: CGSize = .zero
 
     var body: some View {
-        ZStack {
-            // Semi-transparent background
-            Color.black.opacity(0.7)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        isPresented = false
-                    }
-                }
-
-            VStack {
-                HStack {
-                    Spacer()
-                    Button {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            isPresented = false
-                        }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.white, .gray.opacity(0.5))
-                            .shadow(radius: 4)
-                    }
-                    .padding()
-                }
-
-                Spacer()
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
 
                 TabView(selection: $selectedIndex) {
                     ForEach(Array(photoURLs.enumerated()), id: \.offset) { index, urlString in
@@ -290,9 +263,7 @@ struct PhotoOverlayView: View {
                                 }
                                 .resizable()
                                 .scaledToFit()
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(radius: 10)
-                                .padding(.horizontal, 20)
+                                .padding()
                                 .tag(index)
                         } else {
                             RoundedRectangle(cornerRadius: 12)
@@ -302,22 +273,33 @@ struct PhotoOverlayView: View {
                                         .font(.system(size: 60))
                                         .foregroundStyle(.gray)
                                 )
-                                .padding(.horizontal, 20)
+                                .padding()
                                 .tag(index)
                         }
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
-
-                Spacer()
-
-                Text("\(selectedIndex + 1) of \(photoURLs.count)")
-                    .font(.subheadline)
-                    .foregroundStyle(.white)
-                    .padding(.bottom, 40)
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.white, .gray.opacity(0.6))
+                    }
+                }
+
+                ToolbarItem(placement: .bottomBar) {
+                    Text("\(selectedIndex + 1) of \(photoURLs.count)")
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .bottomBar)
         }
-        .transition(.opacity)
     }
 }
