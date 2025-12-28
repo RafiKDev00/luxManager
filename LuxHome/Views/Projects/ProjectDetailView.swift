@@ -27,6 +27,10 @@ struct ProjectDetailView: View {
     @State private var isEditingNextStep = false
     @State private var draftNextStep: String = ""
     @State private var roleEditing: Set<UUID> = []
+    @State private var pendingPhotoToDelete: String?
+    @State private var pendingLogToDelete: UUID?
+    @State private var editingLogId: UUID?
+    @State private var draftLogText: String = ""
     @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
@@ -156,61 +160,74 @@ struct ProjectDetailView: View {
     private var detailsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Details")
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                if isEditingName {
-                    TextField("Project Name", text: $draftName)
-                        .font(.title2.weight(.semibold))
-                        .tint(.orange)
-                    Button {
-                        saveNameDescription()
-                        isEditingName = false
-                    } label: {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.blue)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if isEditingName {
+                        TextField("Project Name", text: $draftName)
+                            .font(.title2.weight(.semibold))
+                            .tint(.orange)
+                        Button {
+                            saveNameDescription()
+                            isEditingName = false
+                        } label: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(draftName.isEmpty ? project.name : draftName)
+                            .font(.title2.weight(.semibold))
+                        Button {
+                            draftName = project.name
+                            isEditingName = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                } else {
-                    Text(draftName.isEmpty ? project.name : draftName)
-                        .font(.title2.weight(.semibold))
-                    Button {
-                        draftName = project.name
-                        isEditingName = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    .buttonStyle(.plain)
                 }
-            }
-            HStack(alignment: .top, spacing: 6) {
-                if isEditingDescription {
-                    TextField("Description", text: $draftDescription, axis: .vertical)
-                        .lineLimit(2...4)
-                        .tint(.orange)
-                    Button {
-                        saveNameDescription()
-                        isEditingDescription = false
-                    } label: {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.blue)
+                HStack(alignment: .top, spacing: 6) {
+                    if isEditingDescription {
+                        TextField("Description", text: $draftDescription, axis: .vertical)
+                            .lineLimit(2...4)
+                            .tint(.orange)
+                        Button {
+                            saveNameDescription()
+                            isEditingDescription = false
+                        } label: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(draftDescription.isEmpty ? project.description : draftDescription)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                        Button {
+                            draftDescription = project.description
+                            isEditingDescription = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                } else {
-                    Text(draftDescription.isEmpty ? project.description : draftDescription)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    Button {
-                        draftDescription = project.description
-                        isEditingDescription = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    .buttonStyle(.plain)
                 }
+        }
+        .alert("Remove log entry?", isPresented: .init(get: { pendingLogToDelete != nil }, set: { if !$0 { pendingLogToDelete = nil } })) {
+            Button("Cancel", role: .cancel) {
+                pendingLogToDelete = nil
             }
+            Button("Remove", role: .destructive) {
+                if let id = pendingLogToDelete {
+                    model.deleteProgressLogEntry(from: projectId, entryId: id)
+                }
+                pendingLogToDelete = nil
+            }
+        } message: {
+            Text("This will delete the progress log entry.")
         }
     }
 
@@ -247,23 +264,24 @@ struct ProjectDetailView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    Text(project.nextStep)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Button {
-                        draftNextStep = project.nextStep
-                        withAnimation(.easeInOut) {
-                            isEditingNextStep = true
-                        }
-                        isNextStepFocused = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .foregroundStyle(.orange)
+                Text(project.nextStep)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button {
+                    draftNextStep = project.nextStep
+                    withAnimation(.easeInOut) {
+                        isEditingNextStep = true
                     }
+                    isNextStepFocused = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.orange)
                 }
             }
-            .padding(16)
+        }
+        .padding(16)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
@@ -323,9 +341,26 @@ struct ProjectDetailView: View {
                     .scaledToFill()
                     .frame(width: 140, height: 100)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .onLongPressGesture {
+                        pendingPhotoToDelete = urlString
+                    }
             } else {
                 placeholderPhoto
             }
+        }
+        .alert("Remove photo?", isPresented: .init(get: { pendingPhotoToDelete != nil }, set: { if !$0 { pendingPhotoToDelete = nil } })) {
+            Button("Cancel", role: .cancel) {
+                pendingPhotoToDelete = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let url = pendingPhotoToDelete {
+                    model.removePhotoFromProject(projectId, photoURL: url)
+                }
+                pendingPhotoToDelete = nil
+            }
+        } message: {
+            Text("This will remove the photo from the gallery.")
         }
     }
 
@@ -344,6 +379,13 @@ struct ProjectDetailView: View {
             }
             ForEach(project.progressLog) { entry in
                 progressLogEntry(entry)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            model.deleteProgressLogEntry(from: projectId, entryId: entry.id)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
             }
         }
     }
@@ -354,9 +396,55 @@ struct ProjectDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text(entry.text)
-                .font(.body)
-                .foregroundStyle(.primary)
+            if editingLogId == entry.id {
+                TextField("Progress", text: $draftLogText, axis: .vertical)
+                    .lineLimit(2...6)
+                    .tint(.orange)
+                HStack {
+                    Button {
+                        model.updateProgressLogEntry(to: projectId, entryId: entry.id, text: draftLogText)
+                        editingLogId = nil
+                        draftLogText = ""
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        editingLogId = nil
+                        draftLogText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                Text(entry.text)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                HStack(spacing: 12) {
+                    Button {
+                        editingLogId = entry.id
+                        draftLogText = entry.text
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        pendingLogToDelete = entry.id
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
 
             if let urlString = entry.photoURL {
                 entryPhotoView(urlString: urlString)
@@ -449,10 +537,13 @@ struct ProjectDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(workerName(for: workerId))
                         .font(.headline)
+                        .foregroundStyle(.primary)
                     HStack(spacing: 6) {
                         if roleEditing.contains(workerId) {
                             TextField("Role", text: assignment.role)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(.plain)
+                                .tint(.orange)
+                                .foregroundStyle(.primary)
                             Button {
                                 roleEditing.remove(workerId)
                             } label: {
@@ -461,18 +552,18 @@ struct ProjectDetailView: View {
                             }
                             .buttonStyle(.plain)
                         } else {
-                            Text(assignment.wrappedValue.role.isEmpty ? "Role not set" : assignment.wrappedValue.role)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                roleEditing.insert(workerId)
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    Text(assignment.wrappedValue.role.isEmpty ? "Role not set" : assignment.wrappedValue.role)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                    Button {
+                        roleEditing.insert(workerId)
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
                     }
                 }
                 Spacer()

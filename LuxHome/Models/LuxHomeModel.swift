@@ -623,6 +623,13 @@ class LuxHomeModel {
         }
     }
 
+    func removePhotoFromProject(_ projectId: UUID, photoURL: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].photoURLs.removeAll { $0 == photoURL }
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
     func addProgressLogEntry(to projectId: UUID, text: String, photoURL: String?) {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             let entry = ProgressLogEntry(
@@ -634,6 +641,22 @@ class LuxHomeModel {
             if let photoURL = photoURL, !projects[index].photoURLs.contains(photoURL) {
                 projects[index].photoURLs.append(photoURL)
             }
+            logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+        }
+    }
+
+    func updateProgressLogEntry(to projectId: UUID, entryId: UUID, text: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            if let logIndex = projects[index].progressLog.firstIndex(where: { $0.id == entryId }) {
+                projects[index].progressLog[logIndex].text = text
+                logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+            }
+        }
+    }
+
+    func deleteProgressLogEntry(from projectId: UUID, entryId: UUID) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].progressLog.removeAll { $0.id == entryId }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
         }
     }
