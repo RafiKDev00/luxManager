@@ -181,6 +181,10 @@ class LuxHomeModel {
         ]
     }
 
+    static let gardenProjectId = UUID()
+    static let kitchenProjectId = UUID()
+    static let basementProjectId = UUID()
+
     static func sampleProjects(using workers: [LuxWorker]) -> [LuxProject] {
         let mariaId = workers.count > 0 ? workers[0].id : UUID()
         let andrewId = workers.count > 1 ? workers[1].id : UUID()
@@ -188,6 +192,7 @@ class LuxHomeModel {
 
         return [
             LuxProject(
+                id: gardenProjectId,
                 assignedWorkers: [
                     ProjectWorkerAssignment(workerId: mariaId, role: "Landscaping Lead"),
                     ProjectWorkerAssignment(workerId: johnId, role: "Irrigation")
@@ -218,6 +223,7 @@ class LuxHomeModel {
                 ]
             ),
             LuxProject(
+                id: kitchenProjectId,
                 assignedWorkers: [
                     ProjectWorkerAssignment(workerId: andrewId, role: "General Contractor")
                 ],
@@ -239,6 +245,7 @@ class LuxHomeModel {
                 ]
             ),
             LuxProject(
+                id: basementProjectId,
                 assignedWorkers: [
                     ProjectWorkerAssignment(workerId: mariaId, role: "Initial inspection")
                 ],
@@ -259,9 +266,6 @@ class LuxHomeModel {
     }
 
     static func sampleWorkers(projectIds: [UUID]) -> [LuxWorker] {
-        let gardenProjectId = projectIds.count > 0 ? projectIds[0] : nil
-        let kitchenProjectId = projectIds.count > 1 ? projectIds[1] : nil
-
         return [
             LuxWorker(
                 name: "Maria Rodriguez",
@@ -478,10 +482,7 @@ class LuxHomeModel {
         tasks = LuxHomeModel.sampleTasks
         subtasks = LuxHomeModel.sampleSubtasks
 
-        let tempProjects = LuxHomeModel.sampleProjects(using: [])
-        let projectIds = tempProjects.map { $0.id }
-
-        let seededWorkers = LuxHomeModel.sampleWorkers(projectIds: projectIds)
+        let seededWorkers = LuxHomeModel.sampleWorkers(projectIds: [])
         workers = seededWorkers
         projects = LuxHomeModel.sampleProjects(using: seededWorkers)
         history = LuxHomeModel.sampleHistory
