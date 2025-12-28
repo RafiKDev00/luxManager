@@ -17,6 +17,7 @@ struct ProjectCreationView: View {
     @State private var nextStep: String = ""
     @State private var assignedWorkers: [ProjectWorkerAssignment] = []
     @State private var showingAddWorker = false
+    @State private var showingWorkerPicker = false
 
     var body: some View {
         NavigationStack {
@@ -28,6 +29,15 @@ struct ProjectCreationView: View {
             }
             .safeAreaBar(edge: .top, spacing: 0) {
                 topBar
+            }
+            .sheet(isPresented: $showingWorkerPicker) {
+                workerPickerSheet
+            }
+            .sheet(isPresented: $showingAddWorker) {
+                WorkerCreationView { newWorker in
+                    addAssignment(for: newWorker.id)
+                }
+                .environment(model)
             }
         }
     }
@@ -88,12 +98,8 @@ struct ProjectCreationView: View {
             }
 
             if !availableWorkers.isEmpty {
-                Menu {
-                    ForEach(availableWorkers, id: \.id) { worker in
-                        Button(worker.name) {
-                            addAssignment(for: worker.id)
-                        }
-                    }
+                Button {
+                    showingWorkerPicker = true
                 } label: {
                     Label("Add Existing Worker", systemImage: "person.fill.badge.plus")
                 }
@@ -106,12 +112,6 @@ struct ProjectCreationView: View {
             }
         } header: {
             Text("Workers")
-        }
-        .sheet(isPresented: $showingAddWorker) {
-            WorkerCreationView { newWorker in
-                addAssignment(for: newWorker.id)
-            }
-            .environment(model)
         }
     }
 
@@ -182,6 +182,54 @@ struct ProjectCreationView: View {
 
     private func workerName(for workerId: UUID) -> String {
         model.workers.first(where: { $0.id == workerId })?.name ?? "Unknown Worker"
+    }
+
+    private var workerPickerSheet: some View {
+        NavigationStack {
+            List {
+                ForEach(availableWorkers, id: \.id) { worker in
+                    Button {
+                        addAssignment(for: worker.id)
+                        showingWorkerPicker = false
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(worker.name)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text(worker.specialization)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            .safeAreaBar(edge: .top, spacing: 0) {
+                HStack {
+                    Button {
+                        showingWorkerPicker = false
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(IconButtonStyle(type: .close))
+                    .padding(.leading, 16)
+
+                    Spacer()
+
+                    Text("Select Worker")
+                        .font(.system(size: 24, weight: .bold))
+
+                    Spacer()
+
+                    // Invisible button for spacing symmetry
+                    Image(systemName: "xmark")
+                        .opacity(0)
+                        .padding(.trailing, 16)
+                }
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+            }
+        }
     }
 }
 
