@@ -21,6 +21,10 @@ struct TaskDetailView: View {
     @State private var newSubtaskName = ""
     @FocusState private var isNewSubtaskFocused: Bool
 
+    @State private var isEditingTaskName = false
+    @State private var draftTaskName = ""
+    @FocusState private var isTaskNameFocused: Bool
+
     var subtasks: [LuxSubTask] {
         model.getSubtasks(for: task.id)
     }
@@ -35,8 +39,15 @@ struct TaskDetailView: View {
     var body: some View {
         subtaskList
             .background(Color(.systemGroupedBackground))
-            .navigationTitle(task.name)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .top) {
+                taskTitleHeader
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .background(Color(.systemGroupedBackground))
+            }
         .toolbar {
             TaskToolbar(
                 isEditMode: $isEditMode,
@@ -57,6 +68,40 @@ struct TaskDetailView: View {
             handlePhotoSelection(newItem)
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var taskTitleHeader: some View {
+        HStack(alignment: .center, spacing: 8) {
+            if isEditingTaskName {
+                TextField("Task name", text: $draftTaskName)
+                    .font(.largeTitle.weight(.bold))
+                    .tint(.orange)
+                    .focused($isTaskNameFocused)
+                    .onSubmit {
+                        saveTaskName()
+                    }
+                Button {
+                    saveTaskName()
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(task.name)
+                    .font(.largeTitle.weight(.bold))
+                Button {
+                    startEditingTaskName()
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
     }
 
     private var subtaskList: some View {
@@ -138,6 +183,23 @@ struct TaskDetailView: View {
         isNewSubtaskFocused = false
         newSubtaskName = ""
         isAddingSubtask = false
+    }
+
+    private func startEditingTaskName() {
+        draftTaskName = task.name
+        isEditingTaskName = true
+        isTaskNameFocused = true
+    }
+
+    private func saveTaskName() {
+        let trimmed = draftTaskName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            isEditingTaskName = false
+            return
+        }
+        model.updateTaskName(task.id, name: trimmed)
+        isEditingTaskName = false
+        isTaskNameFocused = false
     }
 }
 

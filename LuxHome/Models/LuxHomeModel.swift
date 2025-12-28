@@ -453,6 +453,13 @@ class LuxHomeModel {
         }
     }
 
+    func updateTaskName(_ taskId: UUID, name: String) {
+        if let index = tasks.firstIndex(where: { $0.id == taskId }) {
+            tasks[index].name = name
+            logHistory(action: .edited, itemType: .task, itemName: name)
+        }
+    }
+
     func addTask(_ task: LuxTask) {
         tasks.append(task)
     }
