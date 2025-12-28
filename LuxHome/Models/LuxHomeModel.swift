@@ -659,6 +659,14 @@ class LuxHomeModel {
         }
     }
 
+    func updateProjectDetails(_ projectId: UUID, name: String, description: String) {
+        if let index = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[index].name = name
+            projects[index].description = description
+            logHistory(action: .edited, itemType: .project, itemName: name)
+        }
+    }
+
     func deleteProject(_ projectId: UUID) {
         if let project = projects.first(where: { $0.id == projectId }) {
             logHistory(action: .deleted, itemType: .project, itemName: project.name)

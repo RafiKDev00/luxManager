@@ -20,8 +20,13 @@ struct ProjectDetailView: View {
     @State private var showingAddWorker = false
     @State private var assignments: [ProjectWorkerAssignment] = []
     @State private var pendingRemoveAssignment: UUID?
+    @State private var draftName: String = ""
+    @State private var draftDescription: String = ""
+    @State private var isEditingName = false
+    @State private var isEditingDescription = false
     @State private var isEditingNextStep = false
     @State private var draftNextStep: String = ""
+    @State private var roleEditing: Set<UUID> = []
     @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
@@ -36,7 +41,7 @@ struct ProjectDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                descriptionSection
+                detailsSection
                 statusSection
                 nextStepSection
                 assignedWorkersSection
@@ -48,7 +53,7 @@ struct ProjectDetailView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(project.name)
+        .navigationTitle(draftName.isEmpty ? project.name : draftName)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -84,6 +89,9 @@ struct ProjectDetailView: View {
         }
         .onAppear {
             assignments = project.assignedWorkers
+            draftName = project.name
+            draftDescription = project.description
+            draftNextStep = project.nextStep
         }
         .onChange(of: assignments) { _, newValue in
             model.updateProjectAssignments(projectId, assignments: newValue)
@@ -98,33 +106,17 @@ struct ProjectDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach($assignments) { $assignment in
-                    NavigationLink {
-                        WorkerDetailView(workerId: assignment.workerId)
-                            .environment(model)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(workerName(for: assignment.workerId))
-                                    .font(.headline)
-                                TextField("Role", text: $assignment.role)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                            Spacer()
+                    workerRow(assignment: $assignment)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 pendingRemoveAssignment = assignment.id
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Remove", systemImage: "trash")
                             }
-                            .buttonStyle(.borderless)
                         }
-                        .padding(12)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
                 }
             }
             HStack{
-                
                 if !availableWorkers.isEmpty {
                     Menu {
                         ForEach(availableWorkers, id: \.id) { worker in
@@ -138,7 +130,7 @@ struct ProjectDetailView: View {
                 }
                 
                 Spacer()
-                
+
                 Button {
                     showingAddWorker = true
                 } label: {
@@ -161,12 +153,70 @@ struct ProjectDetailView: View {
         }
     }
 
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("Details")
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if isEditingName {
+                    TextField("Project Name", text: $draftName)
+                        .font(.title2.weight(.semibold))
+                        .tint(.orange)
+                    Button {
+                        saveNameDescription()
+                        isEditingName = false
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(draftName.isEmpty ? project.name : draftName)
+                        .font(.title2.weight(.semibold))
+                    Button {
+                        draftName = project.name
+                        isEditingName = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            HStack(alignment: .top, spacing: 6) {
+                if isEditingDescription {
+                    TextField("Description", text: $draftDescription, axis: .vertical)
+                        .lineLimit(2...4)
+                        .tint(.orange)
+                    Button {
+                        saveNameDescription()
+                        isEditingDescription = false
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(draftDescription.isEmpty ? project.description : draftDescription)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Button {
+                        draftDescription = project.description
+                        isEditingDescription = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Description")
-            Text(project.description)
-                .font(.body)
-                .foregroundStyle(.primary)
+            EmptyView()
         }
     }
 
@@ -389,6 +439,50 @@ struct ProjectDetailView: View {
             )
     }
 
+    private func workerRow(assignment: Binding<ProjectWorkerAssignment>) -> some View {
+        let workerId = assignment.wrappedValue.workerId
+        return NavigationLink {
+            WorkerDetailView(workerId: workerId)
+                .environment(model)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(workerName(for: workerId))
+                        .font(.headline)
+                    HStack(spacing: 6) {
+                        if roleEditing.contains(workerId) {
+                            TextField("Role", text: assignment.role)
+                                .textFieldStyle(.roundedBorder)
+                            Button {
+                                roleEditing.remove(workerId)
+                            } label: {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Text(assignment.wrappedValue.role.isEmpty ? "Role not set" : assignment.wrappedValue.role)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                roleEditing.insert(workerId)
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
     private func saveNextStep() {
         let text = draftNextStep.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -397,6 +491,22 @@ struct ProjectDetailView: View {
             isEditingNextStep = false
         }
         isNextStepFocused = false
+    }
+
+    private func saveNameDescription() {
+        let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDescription = draftDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        model.updateProjectDetails(
+            projectId,
+            name: trimmedName.isEmpty ? project.name : trimmedName,
+            description: trimmedDescription.isEmpty ? project.description : trimmedDescription
+        )
+    }
+
+    private func saveProjectEdits() {
+        saveNameDescription()
+        isEditingName = false
+        isEditingDescription = false
     }
 
     private func cancelNextStepEdit() {
