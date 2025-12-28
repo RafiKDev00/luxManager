@@ -230,7 +230,7 @@ struct WorkerCreationView: View {
             email = emailAddress.value as String
         }
 
-        showingContactPicker = false
+        showingContactPicker = true //NOTE THAT THIS WORKED BUT POTENTIAL ERROR POINT. OTHERWISE WAS TEARING EVERYETHING DOWN THO
     }
 
     private func isValidEmail(_ email: String) -> Bool {
