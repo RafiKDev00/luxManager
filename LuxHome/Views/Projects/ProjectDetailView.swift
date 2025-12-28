@@ -437,6 +437,16 @@ struct ProjectDetailView: View {
                     }
                     .buttonStyle(.plain)
 
+                    PhotosPicker(selection: $selectedLogPhotoItem, matching: .images) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.gray)
+                    }
+                    .buttonStyle(.plain)
+                    .onChange(of: selectedLogPhotoItem) { _, newItem in
+                        handleLogPhotoSelection(newItem, for: entry.id)
+                    }
+
                     Button {
                         pendingLogToDelete = entry.id
                     } label: {
@@ -504,45 +514,25 @@ struct ProjectDetailView: View {
         }
     }
 
-    @ViewBuilder
     private func entryPhotosView(entry: ProgressLogEntry) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(entry.photoURLs, id: \.self) { urlString in
-                        if let url = URL(string: urlString) {
-                            KFImage(url)
-                                .placeholder {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color(.tertiarySystemGroupedBackground))
-                                        .overlay(
-                                            Image(systemName: "photo")
-                                                .font(.system(size: 20))
-                                                .foregroundStyle(.gray)
-                                        )
-                                }
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 100, height: 100)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
-                    }
-
-                    if editingLogId == entry.id {
-                        PhotosPicker(selection: $selectedLogPhotoItem, matching: .images) {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.tertiarySystemGroupedBackground))
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 30))
-                                        .foregroundStyle(.orange)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .onChange(of: selectedLogPhotoItem) { _, newItem in
-                            handleLogPhotoSelection(newItem, for: entry.id)
-                        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(entry.photoURLs, id: \.self) { urlString in
+                    if let url = URL(string: urlString) {
+                        KFImage(url)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.tertiarySystemGroupedBackground))
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.gray)
+                                    )
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
             }
