@@ -13,6 +13,9 @@ class LuxHomeModel {
     // MARK: - Shared Instance
     static let shared = LuxHomeModel()
 
+    // MARK: - Development Mode
+    private let isDevelopmentMode = false // Set to true for sample data, false for Supabase
+
     // MARK: - Published State
     var tasks: [LuxTask] = []
     var subtasks: [LuxSubTask] = []
@@ -64,35 +67,39 @@ class LuxHomeModel {
 
     // MARK: - Initialization
     private init() {
-        loadSampleData()
-        checkAndResetRecurringTasks()
-
-        // Test Supabase connection
-        Task {
-            await testSupabaseConnection()
+        if isDevelopmentMode {
+            loadSampleData()
+            checkAndResetRecurringTasks()
+        } else {
+            Task {
+                await loadAllData()
+            }
         }
     }
 
-    // MARK: - Supabase Test
-    func testSupabaseConnection() async {
+    // MARK: - Data Loading
+    @MainActor
+    func loadAllData() async {
+        isLoading = true
+        defer { isLoading = false }
+
         do {
-            let tasks: [DBTask] = try await SupabaseService.shared.get(endpoint: "/tasks")
-            print("✅ Supabase connection successful! Found \(tasks.count) tasks in database")
-        } catch let error as SupabaseError {
-            switch error {
-            case .httpError(let statusCode, let message):
-                print("❌ Supabase HTTP error [\(statusCode)]: \(message)")
-            case .decodingError(let err):
-                print("❌ Supabase decoding error: \(err)")
-            case .invalidURL:
-                print("❌ Supabase invalid URL")
-            case .invalidResponse:
-                print("❌ Supabase invalid response")
-            case .networkError(let err):
-                print("❌ Supabase network error: \(err)")
-            }
+            async let tasksFetch = fetchTasks()
+            async let subtasksFetch = fetchSubtasks()
+            async let projectsFetch = fetchProjects()
+            async let workersFetch = fetchWorkers()
+            async let historyFetch = fetchHistory()
+
+            tasks = try await tasksFetch
+            subtasks = try await subtasksFetch
+            projects = try await projectsFetch
+            workers = try await workersFetch
+            history = try await historyFetch
+
+            checkAndResetRecurringTasks()
+            print("✅ Loaded all data from Supabase")
         } catch {
-            print("❌ Supabase connection failed: \(error)")
+            handleError(error)
         }
     }
 
@@ -560,6 +567,27 @@ class LuxHomeModel {
         return kitchenCabinetSubtasks + paintingSubtasks + faucetSubtasks + inspectionSubtasks + singleSubtasks
     }
 
+    // MARK: - Error Handling
+    private func handleError(_ error: Error) {
+        if let supabaseError = error as? SupabaseError {
+            switch supabaseError {
+            case .httpError(let statusCode, let message):
+                errorMessage = "Server error [\(statusCode)]: \(message)"
+            case .decodingError(let err):
+                errorMessage = "Data error: \(err.localizedDescription)"
+            case .invalidURL:
+                errorMessage = "Invalid request"
+            case .invalidResponse:
+                errorMessage = "Invalid server response"
+            case .networkError(let err):
+                errorMessage = "Network error: \(err.localizedDescription)"
+            }
+        } else {
+            errorMessage = error.localizedDescription
+        }
+        print("❌ Error: \(errorMessage ?? "Unknown")")
+    }
+
     private func logHistory(action: HistoryAction, itemType: HistoryItemType, itemName: String, photoURL: String? = nil) {
         let entry = HistoryEntry(
             action: action,
@@ -568,6 +596,71 @@ class LuxHomeModel {
             photoURL: photoURL
         )
         history.insert(entry, at: 0)
+
+        // Save to Supabase if not in dev mode
+        if !isDevelopmentMode {
+            Task {
+                do {
+                    let dbEntry = entry.toDBHistoryEntry()
+                    let _: [DBHistoryEntry] = try await SupabaseService.shared.post(endpoint: "/history_entries", body: dbEntry)
+                } catch {
+                    print("Failed to log history: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Supabase Fetch Methods
+    private func fetchTasks() async throws -> [LuxTask] {
+        let dbTasks: [DBTask] = try await SupabaseService.shared.get(endpoint: "/tasks?order=created_at.desc")
+        return dbTasks.map { LuxTask(from: $0) }
+    }
+
+    private func fetchSubtasks() async throws -> [LuxSubTask] {
+        let dbSubtasks: [DBSubtask] = try await SupabaseService.shared.get(endpoint: "/subtasks?order=created_at.asc")
+        return dbSubtasks.map { LuxSubTask(from: $0) }
+    }
+
+    private func fetchProjects() async throws -> [LuxProject] {
+        let dbProjects: [DBProject] = try await SupabaseService.shared.get(endpoint: "/projects?order=created_at.desc")
+        let dbAssignments: [DBProjectWorker] = try await SupabaseService.shared.get(endpoint: "/project_workers")
+        let dbLogs: [DBProgressLogEntry] = try await SupabaseService.shared.get(endpoint: "/progress_log_entries?order=date.desc")
+
+        return dbProjects.map { dbProject in
+            let assignments = dbAssignments
+                .filter { $0.projectId == dbProject.id }
+                .map { ProjectWorkerAssignment(workerId: $0.workerId, role: $0.role ?? "") }
+
+            let logs = dbLogs
+                .filter { $0.projectId == dbProject.id }
+                .map { ProgressLogEntry(from: $0) }
+
+            return LuxProject(from: dbProject, workers: assignments, progressLog: logs)
+        }
+    }
+
+    private func fetchWorkers() async throws -> [LuxWorker] {
+        let dbWorkers: [DBWorker] = try await SupabaseService.shared.get(endpoint: "/workers?order=name.asc")
+        let dbVisits: [DBScheduledVisit] = try await SupabaseService.shared.get(endpoint: "/scheduled_visits?order=date.asc")
+        let dbChecklists: [DBChecklistItem] = try await SupabaseService.shared.get(endpoint: "/checklist_items")
+
+        return dbWorkers.map { dbWorker in
+            let visits = dbVisits
+                .filter { $0.workerId == dbWorker.id }
+                .map { dbVisit in
+                    let checklist = dbChecklists
+                        .filter { $0.visitId == dbVisit.id }
+                        .map { ChecklistItem(title: $0.title, isCompleted: $0.isCompleted) }
+                    return ScheduledVisit(from: dbVisit, checklist: checklist)
+                }
+
+            return LuxWorker(from: dbWorker, visits: visits)
+        }
+    }
+
+    private func fetchHistory() async throws -> [HistoryEntry] {
+        let dbHistory: [DBHistoryEntry] = try await SupabaseService.shared.get(endpoint: "/history_entries?order=timestamp.desc&limit=100")
+        return dbHistory.map { HistoryEntry(from: $0) }
     }
 
     // MARK: - Task Management
@@ -578,6 +671,18 @@ class LuxHomeModel {
                 tasks[index].lastCompletedDate = Date()
                 logHistory(action: .completed, itemType: .task, itemName: tasks[index].name)
             }
+
+            // Save to Supabase
+            if !isDevelopmentMode {
+                let task = tasks[index]
+                Task {
+                    do {
+                        try await saveTask(task)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -585,6 +690,16 @@ class LuxHomeModel {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = task
             logHistory(action: .edited, itemType: .task, itemName: task.name)
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await saveTask(task)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -592,6 +707,17 @@ class LuxHomeModel {
         if let index = tasks.firstIndex(where: { $0.id == taskId }) {
             tasks[index].name = name
             logHistory(action: .edited, itemType: .task, itemName: name)
+
+            if !isDevelopmentMode {
+                let task = tasks[index]
+                Task {
+                    do {
+                        try await saveTask(task)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -627,6 +753,7 @@ class LuxHomeModel {
         tasks.append(newTask)
         logHistory(action: .created, itemType: .task, itemName: name)
 
+        var newSubtasks: [LuxSubTask] = []
         for subtaskName in finalSubtaskNames {
             let subtask = LuxSubTask(
                 name: subtaskName,
@@ -634,6 +761,20 @@ class LuxHomeModel {
                 taskId: newTask.id
             )
             subtasks.append(subtask)
+            newSubtasks.append(subtask)
+        }
+
+        if !isDevelopmentMode {
+            Task {
+                do {
+                    try await createTaskInSupabase(newTask)
+                    for subtask in newSubtasks {
+                        try await createSubtaskInSupabase(subtask)
+                    }
+                } catch {
+                    handleError(error)
+                }
+            }
         }
     }
 
@@ -690,6 +831,16 @@ class LuxHomeModel {
         if let task = tasks.first(where: { $0.id == taskId }) {
             logHistory(action: .deleted, itemType: .task, itemName: task.name)
             tasks.removeAll { $0.id == taskId }
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await deleteTaskFromSupabase(taskId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -712,12 +863,33 @@ class LuxHomeModel {
         )
         addSubtask(subtask)
         logHistory(action: .created, itemType: .subtask, itemName: name)
+
+        if !isDevelopmentMode {
+            Task {
+                do {
+                    try await createSubtaskInSupabase(subtask)
+                } catch {
+                    handleError(error)
+                }
+            }
+        }
     }
 
     func updateSubtaskName(_ subtaskId: UUID, name: String) {
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
             subtasks[index].name = name
             logHistory(action: .edited, itemType: .subtask, itemName: name)
+
+            if !isDevelopmentMode {
+                let subtask = subtasks[index]
+                Task {
+                    do {
+                        try await saveSubtask(subtask)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -730,6 +902,17 @@ class LuxHomeModel {
             }
 
             updateTaskSubtaskCounts(subtasks[index].taskId)
+
+            if !isDevelopmentMode {
+                let subtask = subtasks[index]
+                Task {
+                    do {
+                        try await saveSubtask(subtask)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -739,6 +922,16 @@ class LuxHomeModel {
             logHistory(action: .deleted, itemType: .subtask, itemName: subtask.name)
             subtasks.removeAll { $0.id == subtaskId }
             updateTaskSubtaskCounts(taskId)
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await deleteSubtaskFromSupabase(subtaskId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -749,6 +942,17 @@ class LuxHomeModel {
             subtasks[index].photoURLs.append(photoURL)
             print("[Model] Photo added, new count: \(subtasks[index].photoURLs.count)")
             logHistory(action: .photoAdded, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
+
+            if !isDevelopmentMode {
+                let subtask = subtasks[index]
+                Task {
+                    do {
+                        try await saveSubtask(subtask)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         } else {
             print("[Model] ERROR: Subtask not found with id: \(subtaskId)")
         }
@@ -758,6 +962,18 @@ class LuxHomeModel {
         if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
             subtasks[index].photoURLs.removeAll { $0 == photoURL }
             logHistory(action: .photoDeleted, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
+
+            if !isDevelopmentMode {
+                let subtask = subtasks[index]
+                Task {
+                    do {
+                        try await deletePhoto(url: photoURL)
+                        try await saveSubtask(subtask)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -793,12 +1009,33 @@ class LuxHomeModel {
         )
         projects.append(newProject)
         logHistory(action: .created, itemType: .project, itemName: name)
+
+        if !isDevelopmentMode {
+            Task {
+                do {
+                    try await createProjectInSupabase(newProject)
+                } catch {
+                    handleError(error)
+                }
+            }
+        }
     }
 
     func addPhotoToProject(_ projectId: UUID, photoURL: String) {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].photoURLs.append(photoURL)
             logHistory(action: .photoAdded, itemType: .project, itemName: projects[index].name, photoURL: photoURL)
+
+            if !isDevelopmentMode {
+                let project = projects[index]
+                Task {
+                    do {
+                        try await saveProject(project)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -806,6 +1043,18 @@ class LuxHomeModel {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].photoURLs.removeAll { $0 == photoURL }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+            if !isDevelopmentMode {
+                let project = projects[index]
+                Task {
+                    do {
+                        try await deletePhoto(url: photoURL)
+                        try await saveProject(project)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -823,6 +1072,16 @@ class LuxHomeModel {
                 }
             }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await createProgressLogEntryInSupabase(entry, projectId: projectId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -834,6 +1093,17 @@ class LuxHomeModel {
                     projects[index].photoURLs.append(photoURL)
                 }
                 logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+                if !isDevelopmentMode {
+                    let entry = projects[index].progressLog[logIndex]
+                    Task {
+                        do {
+                            try await saveProgressLogEntry(entry, projectId: projectId)
+                        } catch {
+                            handleError(error)
+                        }
+                    }
+                }
             }
         }
     }
@@ -852,6 +1122,18 @@ class LuxHomeModel {
                 }
 
                 logHistory(action: .photoDeleted, itemType: .project, itemName: projects[projectIndex].name, photoURL: photoURL)
+
+                if !isDevelopmentMode {
+                    let entry = projects[projectIndex].progressLog[logIndex]
+                    Task {
+                        do {
+                            try await deletePhoto(url: photoURL)
+                            try await saveProgressLogEntry(entry, projectId: projectId)
+                        } catch {
+                            handleError(error)
+                        }
+                    }
+                }
             }
         }
     }
@@ -861,6 +1143,17 @@ class LuxHomeModel {
             if let logIndex = projects[index].progressLog.firstIndex(where: { $0.id == entryId }) {
                 projects[index].progressLog[logIndex].text = text
                 logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+                if !isDevelopmentMode {
+                    let entry = projects[index].progressLog[logIndex]
+                    Task {
+                        do {
+                            try await saveProgressLogEntry(entry, projectId: projectId)
+                        } catch {
+                            handleError(error)
+                        }
+                    }
+                }
             }
         }
     }
@@ -869,6 +1162,16 @@ class LuxHomeModel {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].progressLog.removeAll { $0.id == entryId }
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await deleteProgressLogEntryFromSupabase(entryId, projectId: projectId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -876,6 +1179,17 @@ class LuxHomeModel {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].nextStep = nextStep
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+            if !isDevelopmentMode {
+                let project = projects[index]
+                Task {
+                    do {
+                        try await saveProject(project)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -883,6 +1197,17 @@ class LuxHomeModel {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].assignedWorkers = assignments
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+            if !isDevelopmentMode {
+                let project = projects[index]
+                Task {
+                    do {
+                        try await saveProject(project)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -890,6 +1215,17 @@ class LuxHomeModel {
         if let index = projects.firstIndex(where: { $0.id == projectId }) {
             projects[index].status = status
             logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+
+            if !isDevelopmentMode {
+                let project = projects[index]
+                Task {
+                    do {
+                        try await saveProject(project)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -898,6 +1234,17 @@ class LuxHomeModel {
             projects[index].name = name
             projects[index].description = description
             logHistory(action: .edited, itemType: .project, itemName: name)
+
+            if !isDevelopmentMode {
+                let project = projects[index]
+                Task {
+                    do {
+                        try await saveProject(project)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -905,6 +1252,16 @@ class LuxHomeModel {
         if let project = projects.first(where: { $0.id == projectId }) {
             logHistory(action: .deleted, itemType: .project, itemName: project.name)
             projects.removeAll { $0.id == projectId }
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await deleteProjectFromSupabase(projectId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -922,12 +1279,34 @@ class LuxHomeModel {
         )
         workers.append(newWorker)
         logHistory(action: .created, itemType: .worker, itemName: name)
+
+        if !isDevelopmentMode {
+            Task {
+                do {
+                    try await createWorkerInSupabase(newWorker)
+                } catch {
+                    handleError(error)
+                }
+            }
+        }
+
         return newWorker
     }
 
     func toggleWorkerSchedule(_ workerId: UUID, isScheduled: Bool) {
         if let index = workers.firstIndex(where: { $0.id == workerId }) {
             workers[index].isScheduled = isScheduled
+
+            if !isDevelopmentMode {
+                let worker = workers[index]
+                Task {
+                    do {
+                        try await saveWorker(worker)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -938,6 +1317,16 @@ class LuxHomeModel {
                 workers[index].nextVisit = firstVisit.date
             }
             workers[index].isScheduled = true
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await createScheduledVisitInSupabase(visit, workerId: workerId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -946,6 +1335,17 @@ class LuxHomeModel {
            let visitIndex = workers[workerIndex].scheduledVisits.firstIndex(where: { $0.id == visitId }) {
             workers[workerIndex].scheduledVisits[visitIndex].isDone.toggle()
             recalcNextVisit(for: workerId)
+
+            if !isDevelopmentMode {
+                let visit = workers[workerIndex].scheduledVisits[visitIndex]
+                Task {
+                    do {
+                        try await saveScheduledVisit(visit, workerId: workerId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -958,6 +1358,17 @@ class LuxHomeModel {
             workers[index].specialization = specialization
             workers[index].serviceTypes = serviceTypes
             logHistory(action: .edited, itemType: .worker, itemName: name)
+
+            if !isDevelopmentMode {
+                let worker = workers[index]
+                Task {
+                    do {
+                        try await saveWorker(worker)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -971,6 +1382,16 @@ class LuxHomeModel {
         if let index = workers.firstIndex(where: { $0.id == workerId }) {
             workers[index].scheduledVisits.removeAll { $0.id == visitId }
             recalcNextVisit(for: workerId)
+
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await deleteScheduledVisitFromSupabase(visitId, workerId: workerId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -986,6 +1407,17 @@ class LuxHomeModel {
         if let index = workers.firstIndex(where: { $0.id == workerId }) {
             workers[index].scheduleType = scheduleType
             workers[index].isScheduled = isScheduled
+
+            if !isDevelopmentMode {
+                let worker = workers[index]
+                Task {
+                    do {
+                        try await saveWorker(worker)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 
@@ -997,46 +1429,16 @@ class LuxHomeModel {
                 projects[idx].assignedWorkers.removeAll { $0.workerId == workerId }
             }
             logHistory(action: .deleted, itemType: .worker, itemName: worker.name)
-        }
-    }
 
-    // MARK: - Network Methods (Future Backend Integration)
-    func fetchTasks() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        // TODO: Replace with actual API call
-        // Example:
-        // do {
-        //     let response = try await NetworkService.fetchTasks()
-        //     tasks = response
-        // } catch {
-        //     errorMessage = error.localizedDescription
-        // }
-
-        // For now, just use sample data
-        await MainActor.run {
-            loadSampleData()
-        }
-    }
-
-    func saveTask(_ task: LuxTask) async {
-        isLoading = true
-        defer { isLoading = false }
-
-        // TODO: Replace with actual API call
-        // Example:
-        // do {
-        //     try await NetworkService.saveTask(task)
-        //     await fetchTasks()
-        //     showToast(message: "Task saved successfully")
-        // } catch {
-        //     errorMessage = error.localizedDescription
-        // }
-
-        await MainActor.run {
-            updateTask(task)
-            showToast(message: "Task saved successfully")
+            if !isDevelopmentMode {
+                Task {
+                    do {
+                        try await deleteWorkerFromSupabase(workerId)
+                    } catch {
+                        handleError(error)
+                    }
+                }
+            }
         }
     }
 

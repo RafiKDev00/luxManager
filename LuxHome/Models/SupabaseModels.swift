@@ -4,7 +4,7 @@
 //
 //  Database models that match the Supabase schema
 //  These are Codable versions for network serialization
-//
+// Created by RJ Kigner on 12/21/25.
 
 import Foundation
 
