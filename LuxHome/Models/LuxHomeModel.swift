@@ -66,6 +66,34 @@ class LuxHomeModel {
     private init() {
         loadSampleData()
         checkAndResetRecurringTasks()
+
+        // Test Supabase connection
+        Task {
+            await testSupabaseConnection()
+        }
+    }
+
+    // MARK: - Supabase Test
+    func testSupabaseConnection() async {
+        do {
+            let tasks: [DBTask] = try await SupabaseService.shared.get(endpoint: "/tasks")
+            print("✅ Supabase connection successful! Found \(tasks.count) tasks in database")
+        } catch let error as SupabaseError {
+            switch error {
+            case .httpError(let statusCode, let message):
+                print("❌ Supabase HTTP error [\(statusCode)]: \(message)")
+            case .decodingError(let err):
+                print("❌ Supabase decoding error: \(err)")
+            case .invalidURL:
+                print("❌ Supabase invalid URL")
+            case .invalidResponse:
+                print("❌ Supabase invalid response")
+            case .networkError(let err):
+                print("❌ Supabase network error: \(err)")
+            }
+        } catch {
+            print("❌ Supabase connection failed: \(error)")
+        }
     }
 
     // MARK: - Sample Data (For Previews & Development)

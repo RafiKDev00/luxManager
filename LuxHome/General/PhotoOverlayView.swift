@@ -17,7 +17,7 @@ struct PhotoOverlayView: View {
     var onAddPhoto: ((String) -> Void)? = nil
 
     @State private var showingDeleteAlert = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
 
     var body: some View {
         NavigationStack {
@@ -52,8 +52,8 @@ struct PhotoOverlayView: View {
             } message: {
                 Text("Are you sure you want to delete this photo?")
             }
-            .onChange(of: selectedPhotoItem) { _, newItem in
-                handlePhotoSelection(newItem)
+            .onChange(of: selectedPhotoItems) { _, newItems in
+                handlePhotoSelection(newItems)
             }
         }
     }
@@ -126,7 +126,7 @@ struct PhotoOverlayView: View {
     @ViewBuilder
     private var cameraButton: some View {
         if onAddPhoto != nil {
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            PhotosPicker(selection: $selectedPhotoItems, maxSelectionCount: nil, matching: .images) {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 24))
                     .foregroundStyle(.white)
@@ -150,18 +150,20 @@ struct PhotoOverlayView: View {
         }
     }
 
-    private func handlePhotoSelection(_ photoItem: PhotosPickerItem?) {
-        guard let photoItem else { return }
+    private func handlePhotoSelection(_ photoItems: [PhotosPickerItem]) {
+        guard !photoItems.isEmpty else { return }
 
         Task {
-            if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                let filename = "\(UUID().uuidString).jpg"
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-                try? data.write(to: tempURL)
+            for photoItem in photoItems {
+                if let data = try? await photoItem.loadTransferable(type: Data.self) {
+                    let filename = "\(UUID().uuidString).jpg"
+                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                    try? data.write(to: tempURL)
 
-                onAddPhoto?(tempURL.absoluteString)
+                    onAddPhoto?(tempURL.absoluteString)
+                }
             }
-            selectedPhotoItem = nil
+            selectedPhotoItems = []
         }
     }
 }
