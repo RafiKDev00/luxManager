@@ -33,6 +33,11 @@ struct ProjectDetailView: View {
     @State private var draftLogText: String = ""
     @State private var addingPhotoToLogId: UUID?
     @State private var selectedLogPhotoItem: PhotosPickerItem?
+    @State private var showingLogPhotoOverlay = false
+    @State private var selectedLogPhotoIndex: Int = 0
+    @State private var selectedLogEntry: ProgressLogEntry?
+    @State private var showingGalleryPhotoOverlay = false
+    @State private var selectedGalleryPhotoIndex: Int = 0
     @FocusState private var isNextStepFocused: Bool
 
     private var project: LuxProject {
@@ -92,6 +97,42 @@ struct ProjectDetailView: View {
                 addAssignment(for: newWorker.id)
             }
             .environment(model)
+        }
+        .sheet(isPresented: $showingLogPhotoOverlay) {
+            if let entry = selectedLogEntry {
+                PhotoOverlayView(
+                    photoURLs: entry.photoURLs,
+                    selectedIndex: $selectedLogPhotoIndex,
+                    isPresented: $showingLogPhotoOverlay,
+                    onDelete: { photoURL in
+                        model.deletePhotoFromProgressLogEntry(
+                            projectId: projectId,
+                            entryId: entry.id,
+                            photoURL: photoURL
+                        )
+                    },
+                    onAddPhoto: { photoURL in
+                        model.addPhotoToProgressLogEntry(
+                            to: projectId,
+                            entryId: entry.id,
+                            photoURL: photoURL
+                        )
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingGalleryPhotoOverlay) {
+            PhotoOverlayView(
+                photoURLs: project.photoURLs,
+                selectedIndex: $selectedGalleryPhotoIndex,
+                isPresented: $showingGalleryPhotoOverlay,
+                onDelete: { photoURL in
+                    model.removePhotoFromProject(projectId, photoURL: photoURL)
+                },
+                onAddPhoto: { photoURL in
+                    model.addPhotoToProject(projectId, photoURL: photoURL)
+                }
+            )
         }
         .onAppear {
             assignments = project.assignedWorkers
@@ -335,7 +376,7 @@ struct ProjectDetailView: View {
     }
 
     private var photoThumbnail: some View {
-        ForEach(project.photoURLs, id: \.self) { urlString in
+        ForEach(Array(project.photoURLs.enumerated()), id: \.element) { index, urlString in
             if let url = URL(string: urlString) {
                 KFImage(url)
                     .placeholder { placeholderPhoto }
@@ -344,25 +385,13 @@ struct ProjectDetailView: View {
                     .frame(width: 140, height: 100)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .onLongPressGesture {
-                        pendingPhotoToDelete = urlString
+                    .onTapGesture {
+                        selectedGalleryPhotoIndex = index
+                        showingGalleryPhotoOverlay = true
                     }
             } else {
                 placeholderPhoto
             }
-        }
-        .alert("Remove photo?", isPresented: .init(get: { pendingPhotoToDelete != nil }, set: { if !$0 { pendingPhotoToDelete = nil } })) {
-            Button("Cancel", role: .cancel) {
-                pendingPhotoToDelete = nil
-            }
-            Button("Remove", role: .destructive) {
-                if let url = pendingPhotoToDelete {
-                    model.removePhotoFromProject(projectId, photoURL: url)
-                }
-                pendingPhotoToDelete = nil
-            }
-        } message: {
-            Text("This will remove the photo from the gallery.")
         }
     }
 
@@ -515,10 +544,48 @@ struct ProjectDetailView: View {
     }
 
     private func entryPhotosView(entry: ProgressLogEntry) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(entry.photoURLs, id: \.self) { urlString in
-                    if let url = URL(string: urlString) {
+        HStack(spacing: 8) {
+            ForEach(Array(entry.photoURLs.prefix(2).enumerated()), id: \.offset) { index, urlString in
+                if let url = URL(string: urlString) {
+                    KFImage(url)
+                        .placeholder {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(.tertiarySystemGroupedBackground))
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(.gray)
+                                )
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onTapGesture {
+                            selectedLogPhotoIndex = index
+                            selectedLogEntry = entry
+                            showingLogPhotoOverlay = true
+                        }
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(.tertiarySystemGroupedBackground))
+                        .frame(width: 80, height: 80)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.gray)
+                        )
+                        .onTapGesture {
+                            selectedLogPhotoIndex = index
+                            selectedLogEntry = entry
+                            showingLogPhotoOverlay = true
+                        }
+                }
+            }
+
+            if entry.photoURLs.count > 2 {
+                ZStack {
+                    if let url = URL(string: entry.photoURLs[2]) {
                         KFImage(url)
                             .placeholder {
                                 RoundedRectangle(cornerRadius: 8)
@@ -531,9 +598,33 @@ struct ProjectDetailView: View {
                             }
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 100, height: 100)
+                            .frame(width: 80, height: 80)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .blur(radius: 2)
+                            .opacity(0.6)
+                    } else {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.tertiarySystemGroupedBackground))
+                            .frame(width: 80, height: 80)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(.gray)
+                            )
+                            .blur(radius: 2)
+                            .opacity(0.6)
                     }
+
+                    Text("•••")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
+                }
+                .frame(width: 80, height: 80)
+                .onTapGesture {
+                    selectedLogPhotoIndex = 2
+                    selectedLogEntry = entry
+                    showingLogPhotoOverlay = true
                 }
             }
         }

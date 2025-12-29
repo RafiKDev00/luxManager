@@ -33,9 +33,30 @@
 		EFCAA9E82EF3E9B90041DA3E /* LuxHomeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuxHomeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EFAA27802F027610002DCB25 /* Exceptions for "LuxHome" folder in "LuxHomeTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Views/Splash/LuxLogo2.png,
+			);
+			target = EFCAA9DD2EF3E9B90041DA3E /* LuxHomeTests */;
+		};
+		EFAA27812F027610002DCB25 /* Exceptions for "LuxHome" folder in "LuxHomeUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Views/Splash/LuxLogo2.png,
+			);
+			target = EFCAA9E72EF3E9B90041DA3E /* LuxHomeUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EFCAA9CE2EF3E9B80041DA3E /* LuxHome */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EFAA27802F027610002DCB25 /* Exceptions for "LuxHome" folder in "LuxHomeTests" target */,
+				EFAA27812F027610002DCB25 /* Exceptions for "LuxHome" folder in "LuxHomeUITests" target */,
+			);
 			path = LuxHome;
 			sourceTree = "<group>";
 		};

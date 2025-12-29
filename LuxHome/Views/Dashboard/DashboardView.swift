@@ -11,10 +11,14 @@ struct DashboardView: View {
     @Environment(LuxHomeModel.self) private var model
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .top) {
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+        ZStack(alignment: .top) {
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                TabHeaderView(title: "Dashboard") {
+
+                }
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -39,7 +43,6 @@ struct DashboardView: View {
                     .padding(.bottom, 32)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
@@ -54,7 +57,7 @@ struct DashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
-        .padding(.top, 16)
+        .padding(.top, 8)
     }
 
     private var maintenanceTasksSection: some View {

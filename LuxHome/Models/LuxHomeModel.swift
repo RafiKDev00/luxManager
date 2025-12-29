@@ -726,6 +726,13 @@ class LuxHomeModel {
         }
     }
 
+    func deletePhotoFromSubtask(_ subtaskId: UUID, photoURL: String) {
+        if let index = subtasks.firstIndex(where: { $0.id == subtaskId }) {
+            subtasks[index].photoURLs.removeAll { $0 == photoURL }
+            logHistory(action: .photoDeleted, itemType: .subtask, itemName: subtasks[index].name, photoURL: photoURL)
+        }
+    }
+
     private func updateTaskSubtaskCounts(_ taskId: UUID) {
         if let index = tasks.firstIndex(where: { $0.id == taskId }) {
             let wasCompleted = tasks[index].isCompleted
@@ -799,6 +806,24 @@ class LuxHomeModel {
                     projects[index].photoURLs.append(photoURL)
                 }
                 logHistory(action: .edited, itemType: .project, itemName: projects[index].name)
+            }
+        }
+    }
+
+    func deletePhotoFromProgressLogEntry(projectId: UUID, entryId: UUID, photoURL: String) {
+        if let projectIndex = projects.firstIndex(where: { $0.id == projectId }) {
+            if let logIndex = projects[projectIndex].progressLog.firstIndex(where: { $0.id == entryId }) {
+                projects[projectIndex].progressLog[logIndex].photoURLs.removeAll { $0 == photoURL }
+
+                let stillUsedInOtherLogs = projects[projectIndex].progressLog.contains { log in
+                    log.id != entryId && log.photoURLs.contains(photoURL)
+                }
+
+                if !stillUsedInOtherLogs {
+                    projects[projectIndex].photoURLs.removeAll { $0 == photoURL }
+                }
+
+                logHistory(action: .photoDeleted, itemType: .project, itemName: projects[projectIndex].name, photoURL: photoURL)
             }
         }
     }

@@ -28,6 +28,9 @@ struct HistoryActionIcon: View {
             case .photoAdded:
                 Image(systemName: "camera.circle.fill")
                     .foregroundStyle(.purple)
+            case .photoDeleted:
+                Image(systemName: "photo.circle.fill")
+                    .foregroundStyle(.red)
             case .contacted:
                 Image(systemName: "phone.circle.fill")
                     .foregroundStyle(.orange)

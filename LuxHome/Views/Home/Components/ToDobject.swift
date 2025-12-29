@@ -18,25 +18,27 @@ struct ToDobject: View {
             VStack(spacing: 0) {
                 StatusHeaderView()
 
-                List {
-                    ForEach(groupedTasks.keys.sorted(by: sortSections), id: \.self) { key in
-                        Section {
-                            TaskRowView(tasks: sortedTasksInGroup(groupedTasks[key] ?? []))
-                        } header: {
-                            sectionHeader(for: key, tasks: groupedTasks[key] ?? [])
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(groupedTasks.keys.sorted(by: sortSections), id: \.self) { key in
+                            VStack(alignment: .leading, spacing: 12) {
+                                sectionHeader(for: key, tasks: groupedTasks[key] ?? [])
+                                    .padding(.horizontal, 16)
+
+                                TaskRowView(tasks: sortedTasksInGroup(groupedTasks[key] ?? []))
+                            }
                         }
                     }
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
                 }
-                .listStyle(.plain)
-                .listSectionSpacing(16)
-                .scrollContentBackground(.hidden)
-                .padding(.top, 16)
             }
         }
     }
 
     private var groupedTasks: [String: [LuxTask]] {
-        Dictionary(grouping: model.tasks) { task in
+        let recurringTasks = model.tasks.filter { $0.isRecurring }
+        return Dictionary(grouping: recurringTasks) { task in
             task.recurringDescription
         }
     }
@@ -83,11 +85,6 @@ struct ToDobject: View {
     }
 
     private func sortSections(_ lhs: String, _ rhs: String) -> Bool {
-        // Sort order: One-time tasks first, then by interval frequency
-        if lhs == "One-time" { return true }
-        if rhs == "One-time" { return false }
-
-        // Extract intervals for comparison
         let lhsInterval = extractInterval(from: lhs)
         let rhsInterval = extractInterval(from: rhs)
 

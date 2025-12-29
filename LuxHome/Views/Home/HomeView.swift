@@ -38,31 +38,32 @@ struct HomeView: View {
 
 struct RootTabView: View {
     @Environment(LuxHomeModel.self) private var model
+    @State private var selectedTab = 2
 
     var totalTaskCount: Int {
         model.incompleteTasks.count
     }
 
     var body: some View {
-        TabView {
-            Tab("Maintenance", systemImage:  "checklist.unchecked" ) {
+        TabView(selection: $selectedTab) {
+            Tab("Maintenance", systemImage:  "checklist.unchecked", value: 0) {
                 HomeView()
             }
             .badge(totalTaskCount)
 
-            Tab("Projects", systemImage:  "wrench.and.screwdriver") {
+            Tab("Projects", systemImage:  "wrench.and.screwdriver", value: 1) {
                 ProjectView()
             }
-            
-            Tab("Upcoming", systemImage: "calendar"){
+
+            Tab("Dashboard", systemImage: "calendar", value: 2){
                 DashboardView()
             }
 
-            Tab("Workers", systemImage: "person.2") {
+            Tab("Workers", systemImage: "person.2", value: 3) {
                 WorkersView()
             }
 
-            Tab("History", systemImage: "clock") {
+            Tab("History", systemImage: "clock", value: 4) {
                 HistoryView()
             }
         }
