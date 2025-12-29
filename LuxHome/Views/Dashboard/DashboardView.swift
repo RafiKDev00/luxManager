@@ -11,16 +11,17 @@ struct DashboardView: View {
     @Environment(LuxHomeModel.self) private var model
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack(alignment: .top) {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                TabHeaderView(title: "Dashboard") {
+                VStack(spacing: 0) {
+                    TabHeaderView(title: "Dashboard") {
 
-                }
+                    }
 
-                ScrollView {
+                    ScrollView {
                     VStack(spacing: 20) {
                         headerSection
 
@@ -43,6 +44,7 @@ struct DashboardView: View {
                     .padding(.bottom, 32)
                 }
             }
+        }
         }
     }
 

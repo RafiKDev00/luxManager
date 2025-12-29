@@ -27,15 +27,19 @@ struct ProjectListView: View {
         VStack(spacing: 16) {
             projectsHeader
 
-            List {
-                Section {
-                    ProjectRowView(projects: model.projects)
-                } header: {
-                    EmptyView()
+            if model.projects.isEmpty {
+                ProjectsEmptyStateView()
+            } else {
+                List {
+                    Section {
+                        ProjectRowView(projects: model.projects)
+                    } header: {
+                        EmptyView()
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
     }
 

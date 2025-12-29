@@ -18,19 +18,23 @@ struct ToDobject: View {
             VStack(spacing: 0) {
                 StatusHeaderView()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(groupedTasks.keys.sorted(by: sortSections), id: \.self) { key in
-                            VStack(alignment: .leading, spacing: 12) {
-                                sectionHeader(for: key, tasks: groupedTasks[key] ?? [])
-                                    .padding(.horizontal, 16)
+                if groupedTasks.isEmpty {
+                    TasksEmptyStateView()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(groupedTasks.keys.sorted(by: sortSections), id: \.self) { key in
+                                VStack(alignment: .leading, spacing: 12) {
+                                    sectionHeader(for: key, tasks: groupedTasks[key] ?? [])
+                                        .padding(.horizontal, 16)
 
-                                TaskRowView(tasks: sortedTasksInGroup(groupedTasks[key] ?? []))
+                                    TaskRowView(tasks: sortedTasksInGroup(groupedTasks[key] ?? []))
+                                }
                             }
                         }
+                        .padding(.top, 16)
+                        .padding(.bottom, 32)
                     }
-                    .padding(.top, 16)
-                    .padding(.bottom, 32)
                 }
             }
         }
