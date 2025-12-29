@@ -51,6 +51,8 @@ class SupabaseService {
     func get<T: Decodable>(endpoint: String) async throws -> T {
         let request = try createRequest(endpoint: endpoint, method: "GET")
 
+        print("📥 GET \(endpoint)")
+
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -64,10 +66,33 @@ class SupabaseService {
 
         do {
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+
+                // Try ISO8601 with fractional seconds first
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                // Fallback to standard ISO8601
+                formatter.formatOptions = [.withInternetDateTime]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+            }
             return try decoder.decode(T.self, from: data)
         } catch {
+            // Log the raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode response from \(endpoint)")
+                print("   Raw response: \(responseString)")
+                print("   Error: \(error)")
+            }
             throw SupabaseError.decodingError(error)
         }
     }
@@ -77,9 +102,15 @@ class SupabaseService {
         var request = try createRequest(endpoint: endpoint, method: "POST")
 
         let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            try container.encode(formatter.string(from: date))
+        }
         request.httpBody = try encoder.encode(body)
+
+        print("📤 POST \(endpoint)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -94,11 +125,58 @@ class SupabaseService {
 
         do {
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                formatter.formatOptions = [.withInternetDateTime]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+            }
             return try decoder.decode(R.self, from: data)
         } catch {
+            // Log the raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode POST response from \(endpoint)")
+                print("   Raw response: \(responseString)")
+            }
             throw SupabaseError.decodingError(error)
+        }
+    }
+
+    /// POST request without decoding response - for fire-and-forget operations
+    func postNoResponse<T: Encodable>(endpoint: String, body: T) async throws {
+        var request = try createRequest(endpoint: endpoint, method: "POST")
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            try container.encode(formatter.string(from: date))
+        }
+        request.httpBody = try encoder.encode(body)
+
+        print("📤 POST (no response) \(endpoint)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw SupabaseError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
         }
     }
 
@@ -107,9 +185,15 @@ class SupabaseService {
         var request = try createRequest(endpoint: endpoint, method: "PATCH")
 
         let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            try container.encode(formatter.string(from: date))
+        }
         request.httpBody = try encoder.encode(body)
+
+        print("🔄 PATCH \(endpoint)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -124,10 +208,30 @@ class SupabaseService {
 
         do {
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                formatter.formatOptions = [.withInternetDateTime]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+            }
             return try decoder.decode(R.self, from: data)
         } catch {
+            // Log the raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode PATCH response from \(endpoint)")
+                print("   Raw response: \(responseString)")
+            }
             throw SupabaseError.decodingError(error)
         }
     }
@@ -135,6 +239,8 @@ class SupabaseService {
     /// DELETE request - remove record
     func delete(endpoint: String) async throws {
         let request = try createRequest(endpoint: endpoint, method: "DELETE")
+
+        print("🗑️ DELETE \(endpoint)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 

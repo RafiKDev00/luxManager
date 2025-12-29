@@ -30,13 +30,11 @@ extension LuxHomeModel {
     @MainActor
     func createTaskInSupabase(_ task: LuxTask) async throws {
         let dbTask = task.toDBTask()
-        let created: [DBTask] = try await SupabaseService.shared.post(
+        let _: [DBTask] = try await SupabaseService.shared.post(
             endpoint: "/tasks",
             body: dbTask
         )
-        if let newTask = created.first {
-            tasks.append(LuxTask(from: newTask))
-        }
+        print("✅ Created task in Supabase: \(task.name)")
     }
 
     @MainActor
@@ -64,13 +62,11 @@ extension LuxHomeModel {
     @MainActor
     func createSubtaskInSupabase(_ subtask: LuxSubTask) async throws {
         let dbSubtask = subtask.toDBSubtask()
-        let created: [DBSubtask] = try await SupabaseService.shared.post(
+        let _: [DBSubtask] = try await SupabaseService.shared.post(
             endpoint: "/subtasks",
             body: dbSubtask
         )
-        if let newSubtask = created.first {
-            subtasks.append(LuxSubTask(from: newSubtask))
-        }
+        print("✅ Created subtask in Supabase: \(subtask.name)")
     }
 
     @MainActor
@@ -122,33 +118,27 @@ extension LuxHomeModel {
     @MainActor
     func createProjectInSupabase(_ project: LuxProject) async throws {
         let dbProject = project.toDBProject()
-        let created: [DBProject] = try await SupabaseService.shared.post(
+        let _: [DBProject] = try await SupabaseService.shared.post(
             endpoint: "/projects",
             body: dbProject
         )
 
-        if let newProject = created.first {
-            // Create worker assignments
-            for assignment in project.assignedWorkers {
-                let dbAssignment = DBProjectWorker(
-                    id: UUID(),
-                    projectId: newProject.id,
-                    workerId: assignment.workerId,
-                    role: assignment.role,
-                    createdAt: nil
-                )
-                let _: [DBProjectWorker] = try await SupabaseService.shared.post(
-                    endpoint: "/project_workers",
-                    body: dbAssignment
-                )
-            }
-
-            projects.append(LuxProject(
-                from: newProject,
-                workers: project.assignedWorkers,
-                progressLog: project.progressLog
-            ))
+        // Create worker assignments
+        for assignment in project.assignedWorkers {
+            let dbAssignment = DBProjectWorker(
+                id: UUID(),
+                projectId: project.id,
+                workerId: assignment.workerId,
+                role: assignment.role,
+                createdAt: nil
+            )
+            let _: [DBProjectWorker] = try await SupabaseService.shared.post(
+                endpoint: "/project_workers",
+                body: dbAssignment
+            )
         }
+
+        print("✅ Created project in Supabase: \(project.name)")
     }
 
     @MainActor
@@ -179,16 +169,11 @@ extension LuxHomeModel {
     @MainActor
     func createProgressLogEntryInSupabase(_ entry: ProgressLogEntry, projectId: UUID) async throws {
         let dbEntry = entry.toDBProgressLogEntry(projectId: projectId)
-        let created: [DBProgressLogEntry] = try await SupabaseService.shared.post(
+        let _: [DBProgressLogEntry] = try await SupabaseService.shared.post(
             endpoint: "/progress_log_entries",
             body: dbEntry
         )
-
-        if let index = projects.firstIndex(where: { $0.id == projectId }) {
-            if let newEntry = created.first {
-                projects[index].progressLog.insert(ProgressLogEntry(from: newEntry), at: 0)
-            }
-        }
+        print("✅ Created progress log entry in Supabase")
     }
 
     @MainActor
@@ -220,14 +205,11 @@ extension LuxHomeModel {
     @MainActor
     func createWorkerInSupabase(_ worker: LuxWorker) async throws {
         let dbWorker = worker.toDBWorker()
-        let created: [DBWorker] = try await SupabaseService.shared.post(
+        let _: [DBWorker] = try await SupabaseService.shared.post(
             endpoint: "/workers",
             body: dbWorker
         )
-
-        if let newWorker = created.first {
-            workers.append(LuxWorker(from: newWorker, visits: worker.scheduledVisits))
-        }
+        print("✅ Created worker in Supabase: \(worker.name)")
     }
 
     @MainActor
@@ -258,19 +240,11 @@ extension LuxHomeModel {
     @MainActor
     func createScheduledVisitInSupabase(_ visit: ScheduledVisit, workerId: UUID) async throws {
         let dbVisit = visit.toDBScheduledVisit(workerId: workerId)
-        let created: [DBScheduledVisit] = try await SupabaseService.shared.post(
+        let _: [DBScheduledVisit] = try await SupabaseService.shared.post(
             endpoint: "/scheduled_visits",
             body: dbVisit
         )
-
-        if let index = workers.firstIndex(where: { $0.id == workerId }) {
-            if let newVisit = created.first {
-                workers[index].scheduledVisits.append(ScheduledVisit(from: newVisit, checklist: visit.checklist))
-                // Recalculate next visit
-                let upcoming = workers[index].scheduledVisits.sorted(by: { $0.date < $1.date })
-                workers[index].nextVisit = upcoming.first?.date
-            }
-        }
+        print("✅ Created scheduled visit in Supabase")
     }
 
     @MainActor
