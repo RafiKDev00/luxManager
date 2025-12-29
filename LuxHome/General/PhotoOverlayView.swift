@@ -22,85 +22,28 @@ struct PhotoOverlayView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                photoGalleryView
 
-                TabView(selection: $selectedIndex) {
-                    ForEach(Array(photoURLs.enumerated()), id: \.offset) { index, urlString in
-                        if let url = URL(string: urlString) {
-                            KFImage(url)
-                                .placeholder {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(.systemGray5))
-                                        .overlay(
-                                            Image(systemName: "photo")
-                                                .font(.system(size: 60))
-                                                .foregroundStyle(.gray)
-                                        )
-                                }
-                                .resizable()
-                                .scaledToFit()
-                                .padding()
-                                .tag(index)
-                        } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 60))
-                                        .foregroundStyle(.gray)
-                                )
-                                .padding()
-                                .tag(index)
-                        }
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        cameraButton
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 20)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if onDelete != nil {
-                        Button {
-                            showingDeleteAlert = true
-                        } label: {
-                            Image(systemName: "trash.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.white, .red.opacity(0.8))
-                        }
-                    }
+                    deleteButton
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isPresented = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white, .gray.opacity(0.6))
-                    }
-                }
-
-                ToolbarItem(placement: .bottomBar) {
-                    HStack {
-                        Text("\(selectedIndex + 1) of \(photoURLs.count)")
-                            .font(.subheadline)
-                            .foregroundStyle(.white)
-
-                        Spacer()
-
-                        if onAddPhoto != nil {
-                            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(.white)
-                                    .padding(8)
-                            }
-                        }
-                    }
+                    closeButton
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbarBackground(.hidden, for: .bottomBar)
             .alert("Delete Photo", isPresented: $showingDeleteAlert) {
                 Button("Cancel", role: .cancel) { }
                 Button("Delete", role: .destructive) {
@@ -111,6 +54,85 @@ struct PhotoOverlayView: View {
             }
             .onChange(of: selectedPhotoItem) { _, newItem in
                 handlePhotoSelection(newItem)
+            }
+        }
+    }
+
+    private var photoGalleryView: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $selectedIndex) {
+                ForEach(Array(photoURLs.enumerated()), id: \.offset) { index, urlString in
+                    photoView(for: urlString, at: index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+        }
+    }
+
+    @ViewBuilder
+    private func photoView(for urlString: String, at index: Int) -> some View {
+        if let url = URL(string: urlString) {
+            KFImage(url)
+                .placeholder {
+                    photoPlaceholder
+                }
+                .resizable()
+                .scaledToFit()
+                .padding()
+                .tag(index)
+        } else {
+            photoPlaceholder
+                .padding()
+                .tag(index)
+        }
+    }
+
+    private var photoPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color(.systemGray5))
+            .overlay(
+                Image(systemName: "photo")
+                    .font(.system(size: 60))
+                    .foregroundStyle(.gray)
+            )
+    }
+
+    @ViewBuilder
+    private var deleteButton: some View {
+        if onDelete != nil {
+            Button {
+                showingDeleteAlert = true
+            } label: {
+                Image(systemName: "trash.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.white, .red.opacity(0.8))
+            }
+        }
+    }
+
+    private var closeButton: some View {
+        Button {
+            isPresented = false
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 28))
+                .foregroundStyle(.white, .gray.opacity(0.6))
+        }
+    }
+
+    @ViewBuilder
+    private var cameraButton: some View {
+        if onAddPhoto != nil {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.white)
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
         }
     }
