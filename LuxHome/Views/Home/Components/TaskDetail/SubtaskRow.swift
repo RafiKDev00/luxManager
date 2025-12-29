@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Kingfisher
+import PhotosUI
 
 struct SubtaskRow: View {
     @Environment(LuxHomeModel.self) private var model
@@ -48,7 +49,13 @@ struct SubtaskRow: View {
             PhotoOverlayView(
                 photoURLs: subtask.photoURLs,
                 selectedIndex: $selectedPhotoIndex,
-                isPresented: $showingPhotoOverlay
+                isPresented: $showingPhotoOverlay,
+                onDelete: { photoURL in
+                    model.deletePhotoFromSubtask(subtask.id, photoURL: photoURL)
+                },
+                onAddPhoto: { photoURL in
+                    model.addPhotoToSubtask(subtask.id, photoURL: photoURL)
+                }
             )
         }
     }
@@ -152,7 +159,6 @@ struct SubtaskRow: View {
                             showingPhotoOverlay = true
                         }
                 } else {
-                    // Fallback for invalid URLs
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color(.tertiarySystemGroupedBackground))
                         .frame(width: 40, height: 40)
@@ -237,69 +243,3 @@ struct SubtaskRow: View {
 
 }
 
-// MARK: - Photo Overlay View
-struct PhotoOverlayView: View {
-    let photoURLs: [String]
-    @Binding var selectedIndex: Int
-    @Binding var isPresented: Bool
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-
-                TabView(selection: $selectedIndex) {
-                    ForEach(Array(photoURLs.enumerated()), id: \.offset) { index, urlString in
-                        if let url = URL(string: urlString) {
-                            KFImage(url)
-                                .placeholder {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(.systemGray5))
-                                        .overlay(
-                                            Image(systemName: "photo")
-                                                .font(.system(size: 60))
-                                                .foregroundStyle(.gray)
-                                        )
-                                }
-                                .resizable()
-                                .scaledToFit()
-                                .padding()
-                                .tag(index)
-                        } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 60))
-                                        .foregroundStyle(.gray)
-                                )
-                                .padding()
-                                .tag(index)
-                        }
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isPresented = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white, .gray.opacity(0.6))
-                    }
-                }
-
-                ToolbarItem(placement: .bottomBar) {
-                    Text("\(selectedIndex + 1) of \(photoURLs.count)")
-                        .font(.subheadline)
-                        .foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbarBackground(.hidden, for: .bottomBar)
-        }
-    }
-}

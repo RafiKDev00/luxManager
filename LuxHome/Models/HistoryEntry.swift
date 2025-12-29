@@ -13,6 +13,7 @@ enum HistoryAction: String, Codable {
     case edited = "Edited"
     case deleted = "Deleted"
     case photoAdded = "Photo Added"
+    case photoDeleted = "Photo Deleted"
     case contacted = "Contacted"
 }
 

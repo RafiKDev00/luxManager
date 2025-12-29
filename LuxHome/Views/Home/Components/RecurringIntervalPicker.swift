@@ -22,7 +22,7 @@ struct RecurringIntervalPicker: View {
                     .foregroundStyle(.primary)
 
                 Picker("Interval", selection: $interval) {
-                    ForEach(1...52, id: \.self) { number in
+                    ForEach(1...12, id: \.self) { number in
                         Text("\(number)").tag(number)
                     }
                 }
