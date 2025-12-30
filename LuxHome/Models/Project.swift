@@ -13,7 +13,15 @@ struct LuxProject: Identifiable, Codable {
     var name: String
     var status: String
     var description: String
+
+    // ⚠️ TODO: REMOVE DUE DATE - This field is unused but still exists in database
+    // Currently set to year 2125 as a placeholder. Should be removed from:
+    // - This model
+    // - Database schema (run ALTER TABLE projects DROP COLUMN due_date)
+    // - DBProject in SupabaseModels.swift
+    // - All createProject/updateProject functions
     var dueDate: Date
+
     var nextStep: String
     var photoURLs: [String]
     var progressLog: [ProgressLogEntry]

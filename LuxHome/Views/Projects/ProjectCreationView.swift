@@ -13,7 +13,6 @@ struct ProjectCreationView: View {
 
     @State private var projectName: String = ""
     @State private var description: String = ""
-    @State private var dueDate: Date = Date()
     @State private var nextStep: String = ""
     @State private var assignedWorkers: [ProjectWorkerAssignment] = []
     @State private var showingAddWorker = false
@@ -22,7 +21,6 @@ struct ProjectCreationView: View {
         NavigationStack {
             Form {
                 projectDetailsSection
-                schedulingSection
                 nextStepSection
                 workersSection
             }
@@ -47,15 +45,6 @@ struct ProjectCreationView: View {
                 .lineLimit(3...6)
         } header: {
             Text("Project Details")
-        }
-    }
-
-    private var schedulingSection: some View {
-        Section {
-            DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
-                .tint(.orange)
-        } header: {
-            Text("Timeline")
         }
     }
 
@@ -156,10 +145,19 @@ struct ProjectCreationView: View {
     }
 
     private func saveProject() {
+        // TODO: REMOVE DUE DATE ENTIRELY - Currently unused but still in database
+        // We pass a dummy far-future date (year 2125) to keep the database happy
+        // This field should be removed from:
+        // - LuxProject model
+        // - Database schema (projects table)
+        // - All Supabase models (DBProject)
+        // - createProject function signature
+        let dummyDueDate = Calendar.current.date(byAdding: .year, value: 100, to: Date()) ?? Date()
+
         model.createProject(
             name: projectName,
             description: description,
-            dueDate: dueDate,
+            dueDate: dummyDueDate,
             nextStep: nextStep,
             assignedWorkers: assignedWorkers
         )
