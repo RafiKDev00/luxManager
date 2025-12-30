@@ -156,14 +156,24 @@ struct PhotoOverlayView: View {
         Task {
             for photoItem in photoItems {
                 if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                    let filename = "\(UUID().uuidString).jpg"
-                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-                    try? data.write(to: tempURL)
+                    do {
+                        // Upload to Supabase Storage
+                        let filename = "\(UUID().uuidString).jpg"
+                        let photoURL = try await SupabaseService.shared.uploadPhoto(data, filename: filename)
+                        print("[PhotoOverlay] ✅ Upload successful: \(photoURL)")
 
-                    onAddPhoto?(tempURL.absoluteString)
+                        // Add Supabase URL
+                        await MainActor.run {
+                            onAddPhoto?(photoURL)
+                        }
+                    } catch {
+                        print("[PhotoOverlay] ❌ Upload failed: \(error)")
+                    }
                 }
             }
-            selectedPhotoItems = []
+            await MainActor.run {
+                selectedPhotoItems = []
+            }
         }
     }
 }

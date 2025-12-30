@@ -261,12 +261,17 @@ extension LuxHomeModel {
 
     // MARK: - Photo Upload
 
-    func uploadPhoto(_ imageData: Data) async throws -> String {
-        let filename = "\(UUID().uuidString).jpg"
+    func uploadPhoto(_ imageData: Data, filename: String) async throws -> String {
         return try await SupabaseService.shared.uploadPhoto(imageData, filename: filename)
     }
 
     func deletePhoto(url: String) async throws {
+        // Only delete from Supabase Storage if it's a Supabase URL
+        guard url.starts(with: "http") else {
+            print("⚠️ Skipping deletion - not a Supabase URL: \(url)")
+            return
+        }
+
         // Extract filename from URL
         if let filename = url.components(separatedBy: "/").last {
             try await SupabaseService.shared.deletePhoto(filename: filename)

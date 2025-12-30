@@ -103,21 +103,29 @@ struct ProgressLogEntryView: View {
         Task {
             var photoURLs: [String] = []
 
+            // Upload all photos to Supabase
             for photoItem in selectedPhotoItems {
                 if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                    let filename = "\(UUID().uuidString).jpg"
-                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-                    try? data.write(to: tempURL)
-                    photoURLs.append(tempURL.absoluteString)
+                    do {
+                        let filename = "\(UUID().uuidString).jpg"
+                        let photoURL = try await model.uploadPhoto(data, filename: filename)
+                        photoURLs.append(photoURL)
+                        print("[ProgressLogEntry] ✅ Upload successful: \(photoURL)")
+                    } catch {
+                        print("[ProgressLogEntry] ❌ Upload failed: \(error)")
+                    }
                 }
             }
 
-            model.addProgressLogEntry(
-                to: projectId,
-                text: entryText,
-                photoURLs: photoURLs
-            )
-            dismiss()
+            // Save entry with Supabase URLs
+            await MainActor.run {
+                model.addProgressLogEntry(
+                    to: projectId,
+                    text: entryText,
+                    photoURLs: photoURLs
+                )
+                dismiss()
+            }
         }
     }
 }
