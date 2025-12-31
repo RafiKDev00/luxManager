@@ -83,12 +83,12 @@ struct TaskDetailView: View {
 
             print("[TaskDetail] onChange - starting upload for subtask: \(subtaskId)")
 
-            // Launch async task with captured values
+            // Clear picker immediately (non-blocking)
+            clearPhotoSelection()
+
+            // Upload in background
             Task {
                 await uploadPhotoAndCompleteSubtask(photoItem, for: subtaskId)
-                await MainActor.run {
-                    clearPhotoSelection()
-                }
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -172,20 +172,27 @@ struct TaskDetailView: View {
 
     private func uploadPhotoAndCompleteSubtask(_ photoItem: PhotosPickerItem, for subtaskId: UUID) async {
         print("[TaskDetail] Starting photo upload for subtask: \(subtaskId)")
-        if let data = try? await photoItem.loadTransferable(type: Data.self) {
-            print("[TaskDetail] Photo data loaded, size: \(data.count) bytes")
-            let filename = "\(UUID().uuidString).jpg"
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-            try? data.write(to: tempURL)
-            print("[TaskDetail] Photo saved to: \(tempURL.absoluteString)")
 
-            // Update on main thread
+        guard let data = try? await photoItem.loadTransferable(type: Data.self) else {
+            print("[TaskDetail] Failed to load photo data")
+            return
+        }
+
+        print("[TaskDetail] Photo data loaded, size: \(data.count) bytes")
+
+        do {
+            // Upload to Supabase Storage
+            let filename = "\(UUID().uuidString).jpg"
+            let photoURL = try await model.uploadPhoto(data, filename: filename)
+            print("[TaskDetail] ✅ Upload successful: \(photoURL)")
+
+            // Save Supabase URL to database
             await MainActor.run {
-                model.addPhotoToSubtask(subtaskId, photoURL: tempURL.absoluteString)
+                model.addPhotoToSubtask(subtaskId, photoURL: photoURL)
                 print("[TaskDetail] Photo added to model for subtask: \(subtaskId)")
             }
-        } else {
-            print("[TaskDetail] Failed to load photo data")
+        } catch {
+            print("[TaskDetail] ❌ Upload failed: \(error)")
         }
     }
 

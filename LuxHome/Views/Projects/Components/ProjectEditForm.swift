@@ -10,7 +10,6 @@ import SwiftUI
 struct ProjectEditForm: View {
     @Binding var name: String
     @Binding var description: String
-    @Binding var dueDate: Date
     @Binding var assignments: [ProjectWorkerAssignment]
 
     @Environment(LuxHomeModel.self) private var model
@@ -20,7 +19,6 @@ struct ProjectEditForm: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             basicInfoSection
-            dueDateSection
             workersSection
         }
         .sheet(isPresented: $showingAddWorker) {
@@ -64,22 +62,6 @@ struct ProjectEditForm: View {
                         .padding(.trailing, 12)
                 }
             }
-        }
-    }
-
-    private var dueDateSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Due Date")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundStyle(.primary)
-
-            DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
-                .tint(.orange)
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
@@ -222,7 +204,6 @@ struct ProjectEditForm: View {
     ProjectEditForm(
         name: .constant("Kitchen Remodel"),
         description: .constant("Complete kitchen renovation including new cabinets, countertops, and appliances"),
-        dueDate: .constant(Date()),
         assignments: .constant([])
     )
     .padding()

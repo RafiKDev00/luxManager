@@ -84,17 +84,25 @@ class LuxHomeModel {
         defer { isLoading = false }
 
         do {
-            async let tasksFetch = fetchTasks()
-            async let subtasksFetch = fetchSubtasks()
-            async let projectsFetch = fetchProjects()
-            async let workersFetch = fetchWorkers()
-            async let historyFetch = fetchHistory()
+            print("🔄 Loading tasks...")
+            tasks = try await fetchTasks()
+            print("✅ Loaded \(tasks.count) tasks")
 
-            tasks = try await tasksFetch
-            subtasks = try await subtasksFetch
-            projects = try await projectsFetch
-            workers = try await workersFetch
-            history = try await historyFetch
+            print("🔄 Loading subtasks...")
+            subtasks = try await fetchSubtasks()
+            print("✅ Loaded \(subtasks.count) subtasks")
+
+            print("🔄 Loading projects...")
+            projects = try await fetchProjects()
+            print("✅ Loaded \(projects.count) projects")
+
+            print("🔄 Loading workers...")
+            workers = try await fetchWorkers()
+            print("✅ Loaded \(workers.count) workers")
+
+            print("🔄 Loading history...")
+            history = try await fetchHistory()
+            print("✅ Loaded \(history.count) history entries")
 
             checkAndResetRecurringTasks()
             print("✅ Loaded all data from Supabase")
@@ -602,9 +610,10 @@ class LuxHomeModel {
             Task {
                 do {
                     let dbEntry = entry.toDBHistoryEntry()
-                    let _: [DBHistoryEntry] = try await SupabaseService.shared.post(endpoint: "/history_entries", body: dbEntry)
+                    try await SupabaseService.shared.postNoResponse(endpoint: "/history_entries", body: dbEntry)
+                    print("✅ Logged history to Supabase")
                 } catch {
-                    print("Failed to log history: \(error)")
+                    print("❌ Failed to log history: \(error)")
                 }
             }
         }

@@ -61,16 +61,21 @@ struct WorkerListView: View {
         .background(Color(.systemGroupedBackground))
     }
 
+    @ViewBuilder
     private var workerList: some View {
-        List {
-            Section {
-                WorkerRowView(workers: filteredWorkers)
-            } header: {
-                EmptyView()
+        if filteredWorkers.isEmpty {
+            WorkersEmptyStateView(isFiltered: selectedTab == .current)
+        } else {
+            List {
+                Section {
+                    WorkerRowView(workers: filteredWorkers)
+                } header: {
+                    EmptyView()
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
 }
 

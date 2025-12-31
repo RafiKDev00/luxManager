@@ -533,13 +533,28 @@ struct ProjectDetailView: View {
         guard let photoItem else { return }
 
         Task {
-            if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                let filename = "\(UUID().uuidString).jpg"
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-                try? data.write(to: tempURL)
-                model.addPhotoToProject(projectId, photoURL: tempURL.absoluteString)
+            guard let data = try? await photoItem.loadTransferable(type: Data.self) else {
+                selectedPhotoItem = nil
+                return
             }
-            selectedPhotoItem = nil
+
+            do {
+                // Upload to Supabase Storage
+                let filename = "\(UUID().uuidString).jpg"
+                let photoURL = try await model.uploadPhoto(data, filename: filename)
+                print("[ProjectDetail] ✅ Upload successful: \(photoURL)")
+
+                // Save Supabase URL
+                await MainActor.run {
+                    model.addPhotoToProject(projectId, photoURL: photoURL)
+                    selectedPhotoItem = nil
+                }
+            } catch {
+                print("[ProjectDetail] ❌ Upload failed: \(error)")
+                await MainActor.run {
+                    selectedPhotoItem = nil
+                }
+            }
         }
     }
 
@@ -740,13 +755,27 @@ struct ProjectDetailView: View {
         guard let photoItem else { return }
 
         Task {
-            if let data = try? await photoItem.loadTransferable(type: Data.self) {
-                let filename = "\(UUID().uuidString).jpg"
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-                try? data.write(to: tempURL)
-
+            guard let data = try? await photoItem.loadTransferable(type: Data.self) else {
                 await MainActor.run {
-                    model.addPhotoToProgressLogEntry(to: projectId, entryId: entryId, photoURL: tempURL.absoluteString)
+                    selectedLogPhotoItem = nil
+                }
+                return
+            }
+
+            do {
+                // Upload to Supabase Storage
+                let filename = "\(UUID().uuidString).jpg"
+                let photoURL = try await model.uploadPhoto(data, filename: filename)
+                print("[ProjectDetail] ✅ Log photo upload successful: \(photoURL)")
+
+                // Save Supabase URL
+                await MainActor.run {
+                    model.addPhotoToProgressLogEntry(to: projectId, entryId: entryId, photoURL: photoURL)
+                    selectedLogPhotoItem = nil
+                }
+            } catch {
+                print("[ProjectDetail] ❌ Log photo upload failed: \(error)")
+                await MainActor.run {
                     selectedLogPhotoItem = nil
                 }
             }
